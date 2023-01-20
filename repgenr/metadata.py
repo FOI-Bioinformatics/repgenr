@@ -23,7 +23,8 @@ parser.add_argument('-ts','--target_species',help='Target species (Example: tula
 
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory. This folder will be created if not already present')
 
-parser.add_argument('--nodownload',help='Use this flag if the database has already been downloaded (to prevent unneccessary load to GTDB)',action='store_true')
+parser.add_argument('--nodownload',help='Use this flag if the database has already been downloaded (to prevent unneccessary load on GTDB)',action='store_true')
+parser.add_argument('--metadata_path',help='Path to downloaded GTDB metadata-file (e.g. bac120_metadata_r207.tar.gz)')
 
 parser.add_argument('--outgroup_accession',default=None,help='Provide an NCBI accession number to use as outgroup in taxonomic output (e.g. GCA_01234567.8')
 
@@ -44,6 +45,7 @@ target_species = args.target_species
 workdir = args.workdir
 
 nodownload = args.nodownload
+metadata_path = args.metadata_path
 
 outgroup_accession = args.outgroup_accession
 #/
@@ -89,10 +91,13 @@ if not os.path.exists(workdir):     os.makedirs(workdir)
 metadata_target = 'https://data.gtdb.ecogenomic.org/releases/release'+str(int(gtdb_release))+'/'+str(gtdb_release)+'/'+gtdb_version+'_metadata_r'+str(int(gtdb_release))+'.tar.gz'
 metadata_file = os.path.basename(metadata_target)
 try:
-    if not nodownload:
+    if not nodownload and not metadata_path:
         urllib.request.urlretrieve(metadata_target, workdir+'/'+metadata_file)
     else:
-        print(' ^ Will use downloaded database, flag --nodownload specified')
+        if nodownload:
+            print(' ^ Will use previously downloaded database, flag --nodownload specified')
+        elif metadata_path:
+            print(' ^ Will use previously downloaded database: '+metadata_path)
 except:
     print('Could not fetch metadata from:')
     print(metadata_target)
@@ -103,7 +108,14 @@ except:
 ### Read GTDB database
 print('Parsing metadata-file...')
 
-fo_tar = tarfile.open(workdir+'/'+metadata_file)
+# check if user provided a path to metadata file
+if metadata_path:
+    gtdb_metadata_path = metadata_path
+else: # else, set to downloaded file
+    gtdb_metadata_path = workdir+'/'+metadata_file
+#/ 
+
+fo_tar = tarfile.open(gtdb_metadata_path)
 accessions_data = {}
 for content in fo_tar.getmembers():
     content_handle = fo_tar.extractfile(content)
