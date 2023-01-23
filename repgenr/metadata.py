@@ -31,7 +31,8 @@ parser.add_argument('--outgroup_accession',default=None,help='Provide an NCBI ac
 #/
 # parse input
 args = parser.parse_args()
-#args = parser.parse_args(['-r', '207.0', '-v', 'bac120', '-d', 'all', '-l', 'family', '-tg', 'francisella', '-ts', 'tularensis', '-wd', 'tularensis2', '--nodownload'])
+#args = parser.parse_args(['--nodownload','-r', '207.0', '-v', 'bac120', '-d', 'all', '-l', 'family', '-tg', 'francisella', '-ts', 'tularensis', '-wd', 'tularensis2'])
+#args = parser.parse_args('--nodownload -d all -v bac120 -r 207.0 -l species -tg Staphylococcus -ts epidermidis -wd debug_staph_epi'.split())
 
 gtdb_release = args.release
 gtdb_version = args.version
@@ -220,7 +221,7 @@ for acc in accessions_data:
 ### Parse specified organism and get all other samples at specified level
 print('Parsing target and other organisms at specified level...')
 ## Get target values at taxonomic levels
-target_value_at_level = None
+target_value_per_level = {}
 for acc,data in accessions_data.items():
     # Check if accession matches our target
     #@ check if we have species + genus input
@@ -235,12 +236,16 @@ for acc,data in accessions_data.items():
         if target_family and target_family.lower() == data['tax_gtdb']['family'].lower():
             target_found = True
     #/
-    # if match to target, get values at all specified
+    # if match to target, get values for other samples at all levels until the specified level (e.g. level='species' must match family,genus,species and level='family' must match on family)
     if target_found:
-        target_value_at_level = data['tax_gtdb'][level]
+        for level_to_match in taxonomy_ordered:
+            target_value_per_level[level_to_match] = data['tax_gtdb'][level_to_match]
+            if level_to_match == level: # stop matching requirement at specified parsing level
+                break
+        break
     #/
     
-if not target_value_at_level:
+if not target_value_per_level:
     print('Did not find any entries in database for input target family="'+str(target_family)+'" genus="'+str(target_genus)+'" species="'+str(target_species)+'" at taxonomic level "'+level+'"')
     print('Please ensure that your target exists in the database!')
     sys.exit()
@@ -249,10 +254,15 @@ if not target_value_at_level:
 accessions_selected = {}
 for acc,data in accessions_data.items():
     # check if taxonomic level matches the target value at the same level
-    levels_match = False
-    if data['tax_gtdb'][level] == target_value_at_level:
+    levels_matches = []
+    for level_to_match,value in target_value_per_level.items():
+        if data['tax_gtdb'][level_to_match] == value:
+            levels_matches.append(True)
+        else:
+            levels_matches.append(False)
+    
+    if all(levels_matches):
         accessions_selected[acc] = data
-    #/
 ##/
 ## Get organism at upper taxonomic level (for rooting phylogenetic tree by using an outgroup organism)
 tax_level_upper_accessions = {}
