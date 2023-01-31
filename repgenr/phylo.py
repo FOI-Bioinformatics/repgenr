@@ -45,8 +45,13 @@ if not skip_outgroup:
         if file_.find(outgroup_accession) != -1:
             outgroup_file = file_
     #/
+    # Print info
+    print('Using '+outgroup_file+' as outgroup')
+    #/
+    # Do the copy-in
     cmd_cp = ['cp',workdir+'/outgroup/'+outgroup_file,workdir+'/genomes_derep_representants/']
     subprocess.call(' '.join(cmd_cp),shell=True)
+    #/
 ###/
 
 ### Run tree algorithm
