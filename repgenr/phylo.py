@@ -50,7 +50,7 @@ if not skip_outgroup:
 ###/
 
 ### Run tree algorithm
-cmd_mashtree = ['mashtree.pl',workdir+'/genomes_derep_representants/*.fasta','>',workdir+'/'+'genomes_derep_representants.dnd']
+cmd_mashtree = ['mashtree',workdir+'/genomes_derep_representants/*.fasta','>',workdir+'/'+'genomes_derep_representants.dnd']
 subprocess.call(' '.join(map(str,cmd_mashtree)),shell=True)
 ###/
 
