@@ -137,6 +137,14 @@ for content in fo_tar.getmembers():
             continue
         #/
         ## parse lines
+        
+        # Check if this accession (col 0) is a representative in GTDB (col 14)
+        if gtdb_dataset == 'rep':
+            ## NOTE: With version 207.0 I get 62291 genomes.
+            ##       It seems 62291 genomes is correct, as stated here "Unfortunately, ML placement with pplacer is a memory intensive operation requiring 25 ~320 GB of RAM when using the GTDB R07-RS207 bacterial reference tree comprised of 62,291 genomes" (https://www.biorxiv.org/content/10.1101/2022.07.11.499641v1.full.pdf)
+            if line[0] != line[14]: continue
+        #/
+        
         accession = None
         accession_ncbi = None
         genome_representative_gtdb = None
