@@ -23,11 +23,11 @@ parser.add_argument('-ts','--target_species',help='Target species (Example: tula
 
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory. This folder will be created if not already present')
 
-parser.add_argument('--nodownload',help='Use this flag if the database has already been downloaded (to prevent unneccessary load on GTDB)',action='store_true')
+parser.add_argument('--nodownload',action='store_true',help='Use this flag if the database has already been downloaded (to prevent unneccessary load on GTDB)')
 parser.add_argument('--metadata_path',help='Path to downloaded GTDB metadata-file (e.g. bac120_metadata_r207.tar.gz)')
 
-parser.add_argument('--outgroup_accession',default=None,help='Provide an NCBI accession number to use as outgroup in taxonomic output (e.g. GCA_01234567.8')
-
+parser.add_argument('--outgroup_accession',default=None,help='Provide an NCBI accession number to use as outgroup in taxonomic output (e.g. GCA_01234567.8)')
+parser.add_argument('--limit',type=int,default=None,help='Limits the analysis to the specified number of genomes (e.g. for test/debug purposes)')
 #/
 # parse input
 args = parser.parse_args()
@@ -49,6 +49,7 @@ nodownload = args.nodownload
 metadata_path = args.metadata_path
 
 outgroup_accession = args.outgroup_accession
+limit_samples = args.limit
 #/
 # validate input
 if gtdb_release.find('.') == -1:
@@ -253,16 +254,23 @@ if not target_value_per_level:
 ## Get other organisms at specified level
 accessions_selected = {}
 for acc,data in accessions_data.items():
-    # check if taxonomic level matches the target value at the same level
+    # check if taxonomic level matches the target value at relevant levels
     levels_matches = []
     for level_to_match,value in target_value_per_level.items():
         if data['tax_gtdb'][level_to_match] == value:
             levels_matches.append(True)
         else:
             levels_matches.append(False)
+    #/
     
     if all(levels_matches):
         accessions_selected[acc] = data
+        
+        # Check if we have a limit on how many samples to fetch
+        if limit_samples and len(accessions_selected) >= limit_samples:
+            print('Maximum number of samples reached '+str(limit_samples)+' , moving on...')
+            break
+        #/
 ##/
 ## Get organism at upper taxonomic level (for rooting phylogenetic tree by using an outgroup organism)
 tax_level_upper_accessions = {}
@@ -363,20 +371,16 @@ plt.savefig(workdir+'/'+'metadata_summary_number_per_level.png',dpi=200)
 with open(workdir+'/'+'metadata_selected.tsv','w') as nf:
     nf.write(str(accessions_selected))
 ##/
-
-## Accession numbers for selected accessions
-if 0 :
-    with open(workdir+'/'+'accessions_selected.tsv','w') as nf:
-        nf.write('\n'.join(sorted(accessions_selected)))
-##/
-
 ## Output level
 with open(workdir+'/'+'metadata_level.txt','w') as nf:
     nf.write(level+'\n')
 ##/
-
 ## Output outgroup organism
 with open(workdir+'/'+'outgroup_accession.txt','w') as nf:
     nf.write(list(tax_level_upper_accessions)[0]+'\n')
+##/
+## Metadata for outgroup
+with open(workdir+'/'+'metadata_outgroup.tsv','w') as nf:
+    nf.write(str(tax_level_upper_accessions))
 ##/
 ###/

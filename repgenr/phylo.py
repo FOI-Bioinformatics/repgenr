@@ -7,8 +7,6 @@ import argparse
 import gzip
 import ast
 
-workdir = 'output_test'
-
 ### Parse input arguments
 # setup
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -36,11 +34,18 @@ if not os.path.exists(workdir+'/'+'genomes_derep_representants'):
 
 ### Copy-in outgroup sample
 if not skip_outgroup:
+    # Get accession
     outgroup_accession = None
     with open(workdir+'/'+'outgroup_accession.txt','r') as f:
         outgroup_accession = f.readline().strip('\n')
-        
-    cmd_cp = ['cp',workdir+'/outgroup/'+outgroup_accession+'.fasta',workdir+'/genomes_derep_representants/']
+    #/
+    # Find file in outgroup directory
+    outgroup_file = None
+    for file_ in os.listdir(workdir+'/'+'outgroup'):
+        if file_.find(outgroup_accession) != -1:
+            outgroup_file = file_
+    #/
+    cmd_cp = ['cp',workdir+'/outgroup/'+outgroup_file,workdir+'/genomes_derep_representants/']
     subprocess.call(' '.join(cmd_cp),shell=True)
 ###/
 
@@ -51,5 +56,5 @@ subprocess.call(' '.join(map(str,cmd_mashtree)),shell=True)
 
 ### Remove outgroup sample
 if not skip_outgroup:
-    os.remove(workdir+'/genomes_derep_representants/'+outgroup_accession+'.fasta')
+    os.remove(workdir+'/genomes_derep_representants/'+outgroup_file)
 ###/

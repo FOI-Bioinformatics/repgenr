@@ -22,7 +22,10 @@ parser.add_argument('--remove_outgroup',help='If specified, will remove the outg
 args = parser.parse_args()
 workdir = args.workdir
 node_basename = args.node_basename
-root_name = ' '.join(args.root_name)
+
+root_name = 'root'
+if args.root_name:      root_name = ' '.join(args.root_name)
+
 remove_outgroup = args.remove_outgroup
 #/
 # validate input
@@ -63,13 +66,21 @@ if not tree:
 ###/
 
 ### Root tree by outgroup
+# Get accession
 outgroup_accession = None
 with open(workdir+'/'+'outgroup_accession.txt','r') as f:
     outgroup_accession = f.readline().strip('\n')
+#/
+# Find file in outgroup directory
+outgroup_file = None
+for file_ in os.listdir(workdir+'/'+'outgroup'):
+    if file_.find(outgroup_accession) != -1:
+        outgroup_file = file_.strip('.fasta')
+#/
 ###/
 
 ### Add node names, get leaves (samples), and get leaves path to root
-tree.set_outgroup(outgroup_accession)
+tree.set_outgroup(outgroup_file)
 
 # Get leaves and set names to nodes that are not named
 node_name_iter = 0
@@ -103,7 +114,7 @@ for node in tree.iter_descendants():
 
 ### Remove outgroup and set root
 if remove_outgroup:
-    del leaves_nodes[outgroup_accession] # delete outgroup
+    del leaves_nodes[outgroup_file] # delete outgroup
     
     # set root of leaves
     for leaf,nodes in leaves_nodes.items():

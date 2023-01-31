@@ -32,7 +32,8 @@ if not os.path.exists(workdir+'/'+'outgroup_accession.txt'):
 #/
 ###/
 
-### Parse selected accessions metadata
+### Parse metadata
+## selected accessions metadata
 try:
     print('Parsing metadata...')
     with open(workdir+'/'+'metadata_selected.tsv','r') as f:
@@ -43,7 +44,21 @@ except:
     print(workdir+'/'+'metadata_selected.tsv')
     print('Have you run the metadata-command?')
     sys.exit()
+##/
+## Outgroup metadata
+try:
+    with open(workdir+'/'+'metadata_outgroup.tsv','r') as f:
+        line = f.readline()
+        outgroup_metadata = ast.literal_eval(line)
+except:
+    print('Could not read metadata at location:')
+    print(workdir+'/'+'metadata_outgroup.tsv')
+    print('Have you run the metadata-command?')
+    sys.exit()
+##/
 ###/
+
+
 
 ### Download accessions
 def format_acc_output_file(acc_data_entry):
@@ -136,25 +151,6 @@ with zipfile.ZipFile(workdir+'/'+'ncbi_download.zip','r') as zip_fo:
                 genome_fa_target_path = workdir+'/'+'genomes'+'/'+acc_genome_file
                 shutil.copy(genome_fa_path,genome_fa_target_path)
                 #/
-
-if 0 and 'old ZIP-traverser, remove later. intra-zip traversal is very slow':
-    zip_fo = zipfile.ZipFile(workdir+'/'+'ncbi_download.zip','r')
-    
-    if not os.path.exists(workdir+'/'+'genomes'):        os.makedirs(workdir+'/'+'genomes')
-    for item in zip_fo.namelist():
-        if item.endswith('.fna'): # in NCBI zip-file, the genomes ends with this
-            dirname = item.split('/')[-2]
-            basename = item.split('/')[-1]
-            
-            if dirname in accessions:
-                # write assembly from zip-file to individual gzipped files
-                acc_genome_file = format_acc_output_file(accessions[dirname])
-                
-                with gzip.open(workdir+'/'+'genomes'+'/'+acc_genome_file,'wb') as nf:
-                    nf.write(zip_fo.read(item))
-                #/
-            
-    zip_fo.close()
         
 # remove ZIP file
 print('Cleaning workspace...')
@@ -184,8 +180,9 @@ for item in zip_fo.namelist():
         basename = item.split('/')[-1]
         
         if dirname == outgroup_accession:
-            # write assembly from zip-file to individual gzipped files
-            with open(workdir+'/'+'outgroup'+'/'+outgroup_accession+'.fasta','w') as nf:
+            acc_genome_file = format_acc_output_file(outgroup_metadata[dirname])
+            genome_fa_target_path = workdir+'/'+'outgroup'+'/'+acc_genome_file
+            with open(genome_fa_target_path,'w') as nf:
                 nf.write(zip_fo.read(item).decode('utf-8'))
             #/
 zip_fo.close()
