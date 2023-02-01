@@ -24,7 +24,7 @@ workdir = args.workdir
 node_basename = args.node_basename
 
 root_name = 'root'
-if args.root_name:      root_name = ' '.join(args.root_name)
+if args.root_name:      root_name = ' '.join(args.root_name).replace('"','')
 
 remove_outgroup = args.remove_outgroup
 #/
