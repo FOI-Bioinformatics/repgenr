@@ -182,7 +182,6 @@ for chunk,chunk_output_path in jobs_status.items():
         failed_jobs.append(chunk)
         continue
     #/
-    print(chunk_output_path)
     # Fetch dereplicated genomes from chunk
     for file_ in os.listdir(chunk_output_path+'/'+'genomes_derep_representants'):
         genomes_stage1.append(file_)
