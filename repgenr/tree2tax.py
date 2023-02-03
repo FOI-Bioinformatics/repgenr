@@ -16,6 +16,7 @@ parser.add_argument('-wd','--workdir',required=True,help='Path to working direct
 parser.add_argument('--node_basename',default=None,help='Input a basename of nodes in output relations. Each node will be enumerated using the basename as prefix.\nIf unset, will generate a node name hash based on leaf names (should ensure node unique naming in any modified database)')
 parser.add_argument('-r','--root_name',default=None,nargs='+',help='Specify the root name in output relations')
 parser.add_argument('--remove_outgroup',help='If specified, will remove the outgroup sample from output relations',action='store_true')
+parser.add_argument('--all_genomes',action='store_true',help='If specified, will run on all genomes and not on de-replicated genomes')
 #/
 # parse input
 #args = parser.parse_args(['-wd','tularensis_realtry1','--remove_outgroup','--root_name','Francisella tularensis','--node_basename','node_'])
@@ -27,15 +28,20 @@ root_name = 'root'
 if args.root_name:      root_name = ' '.join(args.root_name).replace('"','')
 
 remove_outgroup = args.remove_outgroup
+run_on_all_genomes = args.all_genomes
 #/
 # validate input
 if not os.path.exists(workdir):
     print('Could not locate working directory (created by metadata-command). Please check the input:')
     print(workdir)
     sys.exit()
-if not os.path.exists(workdir+'/'+'genomes_derep_representants.dnd'):
+if not run_on_all_genomes and not os.path.exists(workdir+'/'+'genomes_derep_representants.dnd'):
     print('Could not locate dereplicated genome representants tree-file (.dnd)!')
     print('Please make sure you have run the phylo-command on the workdir!')
+    sys.exit()
+if run_on_all_genomes and not os.path.exists(workdir+'/'+'genomes.dnd') and not run_on_all_genomes:
+    print('Could not locate genomes tree-file (.dnd)!')
+    print('Please make sure you have run the phylo-command on the workdir (using the --all_gnomes flag)!')
     sys.exit()
 if not os.path.exists(workdir+'/'+'outgroup_accession.txt'):
     print('Could not locate file outgroup_accession.txt to use for tree rooting')
@@ -56,9 +62,24 @@ except:
     sys.exit()
 ###/
 
+### Set input/output paths depending on input type (all genomes vs. dereplicated genomes)
+# Check if run on de-rep genomes
+if not run_on_all_genomes:
+    tree_input_file = workdir+'/'+'genomes_derep_representants.dnd'
+    output_tree2tax_file = workdir+'/'+'derep_genomes_tree2tax.tsv'
+    output_genomes_map_file = workdir+'/'+'derep_genomes_map.tsv'
+#/
+# Else, run on all genomes
+else:
+    tree_input_file = workdir+'/'+'genomes.dnd'
+    output_tree2tax_file = workdir+'/'+'genomes_tree2tax.tsv'
+    output_genomes_map_file = workdir+'/'+'genomes_map.tsv'
+#/
+###/
+
 ### Parse tree
 tree = None
-with open(workdir+'/'+'genomes_derep_representants.dnd','r') as f:
+with open(tree_input_file,'r') as f:
     tree = ete3.Tree(f.readline().strip('\n'))
 if not tree:
     print('Tree-file was empty or not located')
@@ -134,7 +155,7 @@ if remove_outgroup:
 
 ### Compile output parent-child table from leaves path-to-root and leaves to genome files
 ## Parent-child file
-with open(workdir+'/'+'derep_genomes_tree2tax.tsv','w') as nf:
+with open(output_tree2tax_file,'w') as nf:
     # write header
     writeArr = ['child','parent']
     nf.write('\t'.join(writeArr)+'\n')
@@ -156,7 +177,7 @@ with open(workdir+'/'+'derep_genomes_tree2tax.tsv','w') as nf:
     #/
 ##/
 ## Leaf-genome file
-with open(workdir+'/'+'derep_genomes_map.tsv','w') as nf:
+with open(output_genomes_map_file,'w') as nf:
     for leaf in leaves_nodes:
         name_split = leaf.split('_')
         accession = name_split[-2]+'_'+name_split[-1] # GCx_0000000
