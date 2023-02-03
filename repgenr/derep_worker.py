@@ -16,6 +16,7 @@ parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory, created by metadata and genome commands')
 parser.add_argument('-sani','--secondary_ani',default=0.99,help='Average nucleotide identity (ANI) threshold for clustering in sensitive step of dRep (secondary clustering)')
 parser.add_argument('-pani','--primary_ani',default=0.90,help='Average nucleotide identity (ANI) threshold for clustering in rough step of dRep (primary clustering)')
+parser.add_argument('--S_algorithm',default='fastANI',help='Algorithm to use in dRep fastANI. Possible values as of dRep v3.4.1: fastANI,gANI,goANI,ANIn,ANImf (default: fastANI)')
 parser.add_argument('-t','--threads',type=int,default=24,help='Number of threads to use')
 #/
 # parse input
@@ -25,6 +26,7 @@ workdir = args.workdir
 
 secondary_ani = args.secondary_ani
 primary_ani = args.primary_ani
+S_algorithm = args.S_algorithm
 num_threads = args.threads
 #/
 # validate input
@@ -53,7 +55,7 @@ if run_decompress:
 
 ### Run dRep (sa = ANI threshold to form secondary clusters [ALIGNMENT]. pa = ANI thresholds to form primary clusters [MASH])
 print('Running genome dereplication using dRep...')
-cmd_drep = ['dRep','dereplicate',workdir+'/drep_workdir','-g',workdir+'/genomes/*.fasta','--processors',num_threads,'-sa',secondary_ani,'-pa',primary_ani]
+cmd_drep = ['dRep','dereplicate',workdir+'/drep_workdir','-g',workdir+'/genomes/*.fasta','--processors',num_threads,'-sa',secondary_ani,'-pa',primary_ani,'--S_algorithm',S_algorithm]
 cmd_drep.append('-d') #debug output
 subprocess.call(' '.join(map(str,cmd_drep)),shell=True)
 

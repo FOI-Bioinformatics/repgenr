@@ -7,6 +7,16 @@ import shutil
 import subprocess
 from multiprocessing import Pool
 
+
+"""
+Example of chunking:
+    Suppose we have 5000 genomes to dereplicate. Dereplicating them as one process takes too long time, therefore we wish to chunk the work up into 10 manageable batches.
+    command: rengenr derep --process_size 500 --num_processes 10 --threads 50
+    The command will divide the 5000 genomes into batches of 500 genomes each. It will run them all in parallel (as 10 different processes) at 50 threads total, 5 threads per process.
+    If we want to make it less parallel, we lower the number of procsses
+    command: rengenr derep --process_size 500 --num_processes 2 --threads 50
+    Now it will run them 2 processses in parallel at 50 threads total, 25 threads per process.
+"""
 ### Parse input arguments
 # setup
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -15,8 +25,9 @@ parser.add_argument('-sani','--secondary_ani',default=0.99,help='Average nucleot
 parser.add_argument('-pani','--primary_ani',default=0.90,help='Average nucleotide identity (ANI) threshold for clustering in rough step of dRep (primary clustering)')
 parser.add_argument('--pre_secondary_ani',default=None,help='On dataset chunks, ANI threshold for clustering in first stage of dRep. Only applied if -s/--process_size is >1 (default: same as -sani)')
 parser.add_argument('--pre_primary_ani',default=None,help='On dataset chunks, ANI threshold for clustering in second stage of dRep. Only applied if -s/--process_size is >1 (default: same as -pani)')
-parser.add_argument('-t','--threads',type=int,default=16,help='Number of threads to use (total)')
-parser.add_argument('-p','--num_processes',type=int,default=1,help='Number of processes to execute in parallel\nMust be paired with -s/--process_size to split a large dataset into multiple batches that are processed separately. In a second round, the dereplicated output of batches are subjected to dRep (default: 1)')
+parser.add_argument('--S_algorithm',default='fastANI',help='Algorithm to use in dRep fastANI. Possible values as of dRep v3.4.1: fastANI,gANI,goANI,ANIn,ANImf (default: fastANI)')
+parser.add_argument('-t','--threads',type=int,default=16,help='Number of total threads to use (default: 16)')
+parser.add_argument('-p','--num_processes',type=int,default=1,help='Number of processes to execute in parallel\nMust be paired with -s/--process_size to split a large dataset into multiple batches that are processed separately.\In a second round, the dereplicated output of batches are subjected to dRep (default: 1)')
 parser.add_argument('-s','--process_size',type=int,default=False,help='Number of genomes per process. Lower values increase speed (default: full dataset, i.e. no dataset splitting)')
 parser.add_argument('--keep_files',action='store_true',help='If specified, will save intermediary files')
 #/
@@ -28,6 +39,7 @@ workdir = args.workdir
 
 secondary_ani = args.secondary_ani
 primary_ani = args.primary_ani
+S_algorithm = args.S_algorithm
 num_threads = args.threads
 num_processes = args.num_processes
 process_size = args.process_size
@@ -113,13 +125,13 @@ for enum,chunk in enumerate(downloaded_genomes_chunked):
 ## Define multiprocessing worker
 def drep_worker(wd,pani,sani,threads):
     # Run drep
-    drep_cmd = ['derep_worker.py','-wd',wd,'--primary_ani',pani,'--secondary_ani',sani,'--threads',threads]
+    drep_cmd = ['derep_worker.py','-wd',wd,'--primary_ani',pani,'--secondary_ani',sani,'--threads',threads,'--S_algorithm',S_algorithm]
     subprocess.call(' '.join(map(str,drep_cmd)),shell=True)
     #/
     # Check if output folder was created, else return false
     drep_output_dir = False
-    if os.path.exists(chunk_wd+'/'+'genomes_derep_representants') and len(os.listdir(chunk_wd+'/'+'genomes_derep_representants')) != 0:
-        drep_output_dir = chunk_wd
+    if os.path.exists(wd+'/'+'genomes_derep_representants') and len(os.listdir(wd+'/'+'genomes_derep_representants')) != 0:
+        drep_output_dir = wd
     #/
     return drep_output_dir
 ##/
@@ -128,6 +140,7 @@ def drep_worker(wd,pani,sani,threads):
 num_processes = min(num_processes,len(downloaded_genomes_chunked))
 num_threads_per_process = int(num_threads/num_processes)
 print('Processing genomes (number of parallel processes is '+str(num_processes)+ ' at '+str(num_threads_per_process)+' threads each)')
+#/
 ##/
 ## start jobs
 pool = Pool(processes=num_processes)
@@ -169,7 +182,7 @@ for chunk,chunk_output_path in jobs_status.items():
         failed_jobs.append(chunk)
         continue
     #/
-    
+    print(chunk_output_path)
     # Fetch dereplicated genomes from chunk
     for file_ in os.listdir(chunk_output_path+'/'+'genomes_derep_representants'):
         genomes_stage1.append(file_)
@@ -206,46 +219,43 @@ if not keep_files:
     shutil.rmtree(chunks_workdir)
 ###/
 
-### Get info about representative sequences and contained sequences
-""" TO BE IMPLEMENTED. below-code is from derep_worker.py
-## Parse genome representatives
-genome_representatives = {} # representative_file_name -> cluster (cluster is parsed below)
-for file_ in os.listdir(workdir+'/'+'drep_workdir/dereplicated_genomes'):
-    genome_representatives[file_] = None
-##/
-## Write info about cluster-contained genomes
-clusters_genomes = {}
-with open(workdir+'/'+'drep_workdir/data_tables/Cdb.csv','r') as f:
-    for enum,line in enumerate(f):
-        if enum == 0: continue #skip header
-        line = line.strip('\n')
-        line = line.split(',')
-        genome,clust = line[0],line[1]
+### Summarize compiled sequences
+## Stage 1 (contained sequences during dRep of chunks)
+with open(workdir+'/'+'derep_chunks_clustered_genomes.tsv','w') as nf:
+    if 0 and 'write header?':
+        writeArr = ['representant','dereplicated'] # write header
+        if drep_secondary_run:  writeArr.append('chunk')    # append column if we ran dRep in two stages. Stage 1 shall include a column saying which chunk it was processed in.
+        nf.write('\t'.join(writeArr)+'\n')
         
-        if not clust in clusters_genomes:        clusters_genomes[clust] = set()
-        clusters_genomes[clust].add(genome)
-        
-        # check if current line is the representative
-        if genome in genome_representatives:
-            genome_representatives[genome] = clust
-        #/
+    for chunk,chunk_output_path in jobs_status.items():
+        if chunk_output_path != False:
+            with open(chunk_output_path+'/'+'drep_clustered_genomes.tsv','r') as f:
+                for line in f:
+                    line = line.strip('\n')
+                    writeArr = line.split('\t')
+                    if drep_secondary_run:  writeArr.append(chunk) # if we ran dRep in two stages, write representant + chunk from file, and add info about which cunk this relation was processed from
+                    nf.write('\t'.join(writeArr)+'\n')
 ##/
-## Write out
-with open(workdir+'/'+'drep_clustered_genomes.tsv','w') as nf:
-    for genome_rep,clust in genome_representatives.items():
-        for genome_contained in clusters_genomes[clust]:
-            if genome_contained == genome_rep: continue # skip self
-            writeArr = [genome_rep,genome_contained]
-            nf.write('\t'.join(writeArr)+'\n')
+## Stage 2 (contained sequences during dRep of stage1 output)
+# Check if stage2 was not run (all datasets were run as one process in stage1)
+if not drep_secondary_run:
+    # Rename file from stage 1
+    os.rename(workdir+'/'+'derep_chunks_clustered_genomes.tsv',workdir+'/'+'derep_clustered_genomes.tsv')
+    #/
+#/
+# Else, copy file from stage 2
+else:
+    shutil.copy2(inter_chunks_wd+'/'+'drep_clustered_genomes.tsv',workdir+'/'+'derep_clustered_genomes.tsv')
+#/
 ##/
 ###/
-"""
+
 ### Write parameters used
 with open(workdir+'/'+'derep_parameters.txt','w') as nf:
     nf.write('primary_ani'+'\t'+str(primary_ani)+'\n')
     nf.write('secondary_ani'+'\t'+str(secondary_ani)+'\n')
-    nf.write('dRep was run twice'+'\t'+str(drep_secondary_run))
-    nf.write('number of dataset splits'+'\t'+str(num_processes)+'\n')
+    nf.write('input_data_processed_in_two_stages'+'\t'+str(drep_secondary_run)+'\n')
+    nf.write('number_of_dataset_splits'+'\t'+str(num_processes)+'\n')
     nf.write('datasets per split'+'\t'+str(process_size)+'\n')
     nf.write('pre_primary_ani'+'\t'+str(pre_primary_ani)+'\n')
     nf.write('pre_secondary_ani'+'\t'+str(pre_secondary_ani)+'\n')
