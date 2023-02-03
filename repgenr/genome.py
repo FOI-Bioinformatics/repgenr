@@ -15,11 +15,13 @@ workdir = 'output_test'
 # setup
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory, created by metadata-command')
+parser.add_argument('--accession_list_only',action='store_true',help='If specified, will output NCBI download accession list and then terminate')
 #/
 # parse input
 args = parser.parse_args()
 
 workdir = args.workdir
+halt_after_accession_list = args.accession_list_only
 #/
 # validate input
 if not os.path.exists(workdir):
@@ -96,6 +98,10 @@ if os.path.exists(workdir+'/'+'genomes'):
 ## Dump list of accessions for "ncbi datasets" software
 with open(workdir+'/'+'ncbi_acc_download_list.txt','w') as nf:
     nf.write('\n'.join(accessions_to_download))
+
+if halt_after_accession_list:
+    print('Accession list printed. Terminating')
+    sys.exit()
 ##/
 
 ## Download genome fastas
