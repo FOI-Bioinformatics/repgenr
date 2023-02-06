@@ -82,7 +82,7 @@ chunks_workdir = workdir+'/'+'dereplication_workdir' # the results will be retur
 if os.path.exists(chunks_workdir):
     # Delete workding directory if it previously existed. We need to make sure the input to drep do not change if a user re-runs the command
     print('A previous directory for drep chunks was found. It will be deleted now before creating the new one')
-    shutil.rmtree(chunks_workdir)
+    #shutil.rmtree(chunks_workdir)
     #/
 if not os.path.exists(chunks_workdir):     os.makedirs(chunks_workdir)
 
@@ -154,7 +154,7 @@ for enum,chunk_wd in enumerate(os.listdir(intra_chunks_wd)):
         print('Incorrect folder structure found for directory '+chunk_wd+'\n\tskipping...')
         continue
     #/
-    print_status = '[worker '+str(enum)+'/'+str(len(intra_chunks_wd))+']' # will display " [worker1/50] started..." and --::-- " finished!"
+    print_status = '[worker '+str(enum)+'/'+str(len(downloaded_genomes_chunked)-1)+']' # Idea: Print-status holds the ID of the worker. It will display " [worker 1/50] " (input ID) followed by "started..." and --::-- " finished!" (appended in worker-function)
     jobs[chunk_wd] = pool.apply_async(drep_worker,args=(chunk_wd_path,pre_primary_ani,pre_secondary_ani,num_threads_per_process,print_status))
     #break
 pool.close()
