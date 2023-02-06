@@ -208,7 +208,7 @@ if len(jobs_status) == 1:
 else:
     print('Executing dRep with '+str(len(genomes_stage1))+ ' genomes')
     drep_secondary_run = True
-    drep_worker(inter_chunks_wd,primary_ani,secondary_ani,num_threads)
+    drep_worker(inter_chunks_wd,primary_ani,secondary_ani,num_threads,'[worker 1/1]')
 ##/
 ###/
 
