@@ -61,9 +61,9 @@ if not os.path.exists(workdir):
 
 
 ### init workspace for chunking
-# Define workingdir for chunking and make it (./derep_chunks_workdir with subfolder "intra_chunks" (stage1: drep on chunked genomes) and "inter_chunks" (stage2: drep on output from stage1)
+# Define workingdir for chunking and make it (./dereplication_workdir with subfolder "intra_chunks" (stage1: drep on chunked genomes) and "inter_chunks" (stage2: drep on output from stage1)
 # Tree structure:
-# derep_chunk_workdir
+# dereplication_workdir
 # ├── intra_chunks (stage 1, optionally run as parallel processes)
 # │   ├── chunk1
 # │   │   ├── drep_out
@@ -78,7 +78,7 @@ if not os.path.exists(workdir):
 #     ├── drep_out
 #     └── genomes
 
-chunks_workdir = workdir+'/'+'derep_chunks_workdir' # the results will be returned to derep_chunks_genomes
+chunks_workdir = workdir+'/'+'dereplication_workdir' # the results will be returned to derep_chunks_genomes
 if os.path.exists(chunks_workdir):
     # Delete workding directory if it previously existed. We need to make sure the input to drep do not change if a user re-runs the command
     print('A previous directory for drep chunks was found. It will be deleted now before creating the new one')
@@ -123,7 +123,8 @@ for enum,chunk in enumerate(downloaded_genomes_chunked):
 
 ### Run drep on chunks (stage 1, dereplication intra-chunk)
 ## Define multiprocessing worker
-def drep_worker(wd,pani,sani,threads):
+def drep_worker(wd,pani,sani,threads,print_status):
+    if print_status:            print(print_status + ' started...')
     # Run drep
     drep_cmd = ['derep_worker.py','-wd',wd,'--primary_ani',pani,'--secondary_ani',sani,'--threads',threads,'--S_algorithm',S_algorithm]
     subprocess.call(' '.join(map(str,drep_cmd)),shell=True)
@@ -133,6 +134,7 @@ def drep_worker(wd,pani,sani,threads):
     if os.path.exists(wd+'/'+'genomes_derep_representants') and len(os.listdir(wd+'/'+'genomes_derep_representants')) != 0:
         drep_output_dir = wd
     #/
+    if print_status:            print(print_status + ' finished!')
     return drep_output_dir
 ##/
 ## setup multiprocessing
@@ -145,14 +147,15 @@ print('Processing genomes (number of parallel processes is '+str(num_processes)+
 ## start jobs
 pool = Pool(processes=num_processes)
 jobs = {}
-for chunk_wd in os.listdir(intra_chunks_wd):
+for enum,chunk_wd in enumerate(os.listdir(intra_chunks_wd)):
     chunk_wd_path = intra_chunks_wd+'/'+chunk_wd
     # Check so we have the expected folder structure
     if not os.path.exists(chunk_wd_path+'/'+'genomes'):
         print('Incorrect folder structure found for directory '+chunk_wd+'\n\tskipping...')
         continue
     #/
-    jobs[chunk_wd] = pool.apply_async(drep_worker,args=(chunk_wd_path,pre_primary_ani,pre_secondary_ani,num_threads_per_process))
+    print_status = '[worker '+str(enum)+'/'+str(len(intra_chunks_wd))+']' # will display " [worker1/50] started..." and --::-- " finished!"
+    jobs[chunk_wd] = pool.apply_async(drep_worker,args=(chunk_wd_path,pre_primary_ani,pre_secondary_ani,num_threads_per_process,print_status))
     #break
 pool.close()
 pool.join()
@@ -212,10 +215,6 @@ else:
 ### Fetch final dereplication output and tranfer to master-folder (main workingdirectory)
 print('Finalizing dereplication')
 shutil.copytree(inter_chunks_wd+'/'+'genomes_derep_representants',workdir+'/'+'genomes_derep_representants',dirs_exist_ok=True)
-
-if not keep_files:
-    print('Cleaning workspace')
-    shutil.rmtree(chunks_workdir)
 ###/
 
 ### Summarize compiled sequences
@@ -228,7 +227,7 @@ with open(workdir+'/'+'derep_chunks_clustered_genomes.tsv','w') as nf:
         
     for chunk,chunk_output_path in jobs_status.items():
         if chunk_output_path != False:
-            with open(chunk_output_path+'/'+'drep_clustered_genomes.tsv','r') as f:
+            with open(chunk_output_path+'/'+'derep_clustered_genomes.tsv','r') as f:
                 for line in f:
                     line = line.strip('\n')
                     writeArr = line.split('\t')
@@ -244,9 +243,15 @@ if not drep_secondary_run:
 #/
 # Else, copy file from stage 2
 else:
-    shutil.copy2(inter_chunks_wd+'/'+'drep_clustered_genomes.tsv',workdir+'/'+'derep_clustered_genomes.tsv')
+    shutil.copy2(inter_chunks_wd+'/'+'derep_clustered_genomes.tsv',workdir+'/'+'derep_clustered_genomes.tsv')
 #/
 ##/
+###/
+
+### Clean up workspace
+if not keep_files:
+    print('Cleaning workspace')
+    shutil.rmtree(chunks_workdir)
 ###/
 
 ### Write parameters used
@@ -258,4 +263,5 @@ with open(workdir+'/'+'derep_parameters.txt','w') as nf:
     nf.write('datasets per split'+'\t'+str(process_size)+'\n')
     nf.write('pre_primary_ani'+'\t'+str(pre_primary_ani)+'\n')
     nf.write('pre_secondary_ani'+'\t'+str(pre_secondary_ani)+'\n')
+    nf.write('S_algorithm'+'\t'+str(S_algorithm)+'\n')
 ###/
