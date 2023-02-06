@@ -82,7 +82,7 @@ chunks_workdir = workdir+'/'+'dereplication_workdir' # the results will be retur
 if os.path.exists(chunks_workdir):
     # Delete workding directory if it previously existed. We need to make sure the input to drep do not change if a user re-runs the command
     print('A previous directory for drep chunks was found. It will be deleted now before creating the new one')
-    #shutil.rmtree(chunks_workdir)
+    shutil.rmtree(chunks_workdir)
     #/
 if not os.path.exists(chunks_workdir):     os.makedirs(chunks_workdir)
 
