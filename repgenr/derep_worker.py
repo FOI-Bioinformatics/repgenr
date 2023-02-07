@@ -95,7 +95,7 @@ with open(workdir+'/'+'drep_workdir/data_tables/Cdb.csv','r') as f:
         #/
 ##/
 ## Write out
-with open(workdir+'/'+'drep_clustered_genomes.tsv','w') as nf:
+with open(workdir+'/'+'derep_clustered_genomes.tsv','w') as nf:
     for genome_rep,clust in genome_representatives.items():
         for genome_contained in clusters_genomes[clust]:
             if genome_contained == genome_rep: continue # skip self
