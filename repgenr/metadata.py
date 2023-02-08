@@ -80,13 +80,13 @@ if target_species and not target_genus:
     sys.exit()
     
 if level == 'species' and not target_species:
-    print('Must supply a target species when requesting out put at --level species')
+    print('Must supply a target species when requesting output at --level species')
     sys.exit()
 if level == 'genus' and not target_genus:
-    print('Must supply a target genus when requesting out put at --level genus')
+    print('Must supply a target genus when requesting output at --level genus')
     sys.exit()
 if level == 'family' and not target_family:
-    print('Must supply a target family when requesting out put at --level family')
+    print('Must supply a target family when requesting output at --level family')
     sys.exit()
 #/
 # Final formatting
