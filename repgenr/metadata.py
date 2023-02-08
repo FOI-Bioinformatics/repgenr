@@ -78,6 +78,16 @@ if target_genus and target_family:
 if target_species and not target_genus:
     print('Must supply a target genus for species using --target_genus (e.g., francisella)')
     sys.exit()
+    
+if level == 'species' and not target_species:
+    print('Must supply a target species when requesting out put at --level species')
+    sys.exit()
+if level == 'genus' and not target_genus:
+    print('Must supply a target genus when requesting out put at --level genus')
+    sys.exit()
+if level == 'family' and not target_family:
+    print('Must supply a target family when requesting out put at --level family')
+    sys.exit()
 #/
 # Final formatting
 if target_family:           target_family = target_family.lower()
