@@ -96,7 +96,7 @@ with open(workdir+'/'+'outgroup_accession.txt','r') as f:
 outgroup_file = None
 for file_ in os.listdir(workdir+'/'+'outgroup'):
     if file_.find(outgroup_accession) != -1:
-        outgroup_file = file_.strip('.fasta')
+        outgroup_file = file_#.strip('.fasta')
 #/
 # Print info
 print('Using '+outgroup_file+' as outgroup')
@@ -184,27 +184,4 @@ with open(output_genomes_map_file,'w') as nf:
         writeArr = [accession,leaf]
         nf.write('\t'.join(writeArr)+'\n')
 ##/
-###/
-
-###
-"""
-IDE-guide for flextaxd (run on Carl):
-    
-copy original database:
-    cp /home/databases/kraken/kraken2/NCBI_GTDB_2022_07_r207_ftul/sources/databases/francisellaceae.db .
-
-visualise original database:
-    flextaxd -db francisellaceae.db --vis_type tree --vis_depth 0 --visualise_node Francisellaceae
-    
-run my pipeline, at output/tree2tax-script, specify --root_name B.137 --remove_outgroup
-
-modify original database using flextaxd:
-    flextaxd -db francisellaceae.db --mod_file ../tularensis3/derep_genomes_tree2tax.tsv --genomeid2taxid ../tularensis3/derep_genomes_map.tsv --replace --parent B.137
-    
-visualize modified database:
-    flextaxd -db francisellaceae.db --vis_type tree --vis_depth 0 --visualise_node B.135
-
-visualize full database:
-    flextaxd -db francisellaceae.db --vis_type tree --vis_depth 0 --visualise_node Francisellaceae
-"""
 ###/
