@@ -96,7 +96,7 @@ with open(workdir+'/'+'outgroup_accession.txt','r') as f:
 outgroup_file = None
 for file_ in os.listdir(workdir+'/'+'outgroup'):
     if file_.find(outgroup_accession) != -1:
-        outgroup_file = file_#.strip('.fasta')
+        outgroup_file = file_.strip('.fasta')
 #/
 # Print info
 print('Using '+outgroup_file+' as outgroup')
