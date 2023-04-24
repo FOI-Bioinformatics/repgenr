@@ -134,7 +134,11 @@ if run_mode == 'accurate':
     ###/
     
     ### Run IQTREE (inside phylo_wd, iqtree produces some file)
-    cmd_iqtree = ['iqtree','-T','auto','--threads-max',num_threads,'-o',outgroup_file.replace('.fasta',''),'-s','core.full.aln']
+    cmd_iqtree = ['iqtree','-T','auto','--threads-max',num_threads,'-s','core.full.aln']
+    # check if using
+    if not skip_outgroup:
+        cmd_iqtree += ['-o',outgroup_file.replace('.fasta','')]
+    #/
     subprocess.call(' '.join(map(str,cmd_iqtree)),shell=True)
     #iqtree -T auto --threads-max 40 -s snippy_workdir/core.full.aln -o Francisellaceae_Francisella_sp000764555_GCF_000764555.1.fasta
     ###/
