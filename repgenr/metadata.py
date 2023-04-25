@@ -32,7 +32,7 @@ parser.add_argument('--limit',type=int,default=None,help='Limits the analysis to
 # parse input
 args = parser.parse_args()
 #args = parser.parse_args(['--nodownload','-r', '207.0', '-v', 'bac120', '-d', 'all', '-l', 'family', '-tg', 'francisella', '-ts', 'tularensis', '-wd', 'tularensis2'])
-#args = parser.parse_args('--nodownload -d all -v bac120 -r 207.0 -l species -tg Staphylococcus -ts epidermidis -wd debug_staph_epi'.split())
+#args = parser.parse_args('-r 207.0 -v bac120 -d rep -l family -tf Francisellaceae -wd delme_test/repgenr_family_rep_2 --metadata_path tularensis3/bac120_metadata_r207.tar.gz --outgroup_accession GCA_000297215.2'.split())
 
 gtdb_release = args.release
 gtdb_version = args.version
@@ -148,8 +148,21 @@ for content in fo_tar.getmembers():
         #/
         ## parse lines
         
+        # Check if an outgroup was specified. Then need to parse that entry before testing repset-skip-criteria
+        pre_outgroup_accession_found = False
+        if outgroup_accession:
+            for enum,entry in enumerate(line):
+                column = header[enum]
+                
+                # parse accession
+                if column == 'accession':
+                    accession = entry.replace('GB_','').replace('RS_','')
+                    if accession == outgroup_accession:
+                        pre_outgroup_accession_found = True
+        #/
+        
         # Check if this accession (col 0) is a representative in GTDB (col 14)
-        if gtdb_dataset == 'rep':
+        if gtdb_dataset == 'rep' and not pre_outgroup_accession_found:
             ## NOTE: With version 207.0 I get 62291 genomes.
             ##       It seems 62291 genomes is correct, as stated here "Unfortunately, ML placement with pplacer is a memory intensive operation requiring 25 ~320 GB of RAM when using the GTDB R07-RS207 bacterial reference tree comprised of 62,291 genomes" (https://www.biorxiv.org/content/10.1101/2022.07.11.499641v1.full.pdf)
             if line[0] != line[14]: continue
@@ -294,7 +307,14 @@ for acc,data in accessions_data.items():
 tax_level_upper_accessions = {}
 # Parse manually assigned accession
 if outgroup_accession:
-    tax_level_upper_accessions[outgroup_accession] = True
+    # Check if outgroup_accession exist (if so, assign it in tax_level_upper_accessions)
+    if not outgroup_accession in accessions_data:
+        print('Was unable to find outgroup accession in GTDB data file. Please make sure the accession is correct, it should display under https://gtdb.ecogenomic.org/genome?gid='+outgroup_accession)
+        print('You can try to change GCF<->GCA, it has worked in *some* cases.')
+        sys.exit('Terminating!')
+    else:
+        tax_level_upper_accessions[outgroup_accession] = accessions_data[outgroup_accession]
+    #/
     
 else: # else, get one via metadata
     # Find upper level
@@ -367,7 +387,7 @@ bar_species = ax.bar(xvals[2],yvals[2],label='species')
 ax.xaxis.set_ticks(list(range(len(x_vals))))
 ax.xaxis.set_ticklabels(x_vals,rotation=90)
 plt.legend(loc='upper right')
-plt.title('Number of datasets in each taxonomic level')
+plt.title('Number of datasets in eachttps://gtdb.ecogenomic.org/genome?gid=GCF_000297215.2h taxonomic level')
 plt.tight_layout()
 plt.savefig(workdir+'/'+'metadata_summary_number_in_level.png',dpi=200)
 #/
