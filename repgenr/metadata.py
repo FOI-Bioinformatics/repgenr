@@ -31,7 +31,7 @@ parser.add_argument('--limit',type=int,default=None,help='Limits the analysis to
 #/
 # parse input
 args = parser.parse_args()
-#args = parser.parse_args(['--nodownload','-r', '207.0', '-v', 'bac120', '-d', 'all', '-l', 'family', '-tg', 'francisella', '-ts', 'tularensis', '-wd', 'tularensis2'])
+#args = parser.parse_args(['--nodownload','-r', '207.0', '-v', 'bac120', '-d', 'all', '-l', 'genus', '-tg', 'francisella', '-ts', 'tularensis', '-wd', 'tularensis_WIP'])
 #args = parser.parse_args('-r 207.0 -v bac120 -d rep -l family -tf Francisellaceae -wd delme_test/repgenr_family_rep_2 --metadata_path tularensis3/bac120_metadata_r207.tar.gz --outgroup_accession GCA_000297215.2'.split())
 
 gtdb_release = args.release
@@ -162,16 +162,19 @@ for content in fo_tar.getmembers():
         #/
         
         # Check if this accession (col 0) is a representative in GTDB (col 14)
+        is_gtdb_rep = False
+        if line[0] == line[14]:
+            is_gtdb_rep = True
+            
         if gtdb_dataset == 'rep' and not pre_outgroup_accession_found:
             ## NOTE: With version 207.0 I get 62291 genomes.
             ##       It seems 62291 genomes is correct, as stated here "Unfortunately, ML placement with pplacer is a memory intensive operation requiring 25 ~320 GB of RAM when using the GTDB R07-RS207 bacterial reference tree comprised of 62,291 genomes" (https://www.biorxiv.org/content/10.1101/2022.07.11.499641v1.full.pdf)
-            if line[0] != line[14]: continue
+            if not is_gtdb_rep: continue
         #/
         
         accession = None
         accession_ncbi = None
-        genome_representative_gtdb = None
-        representative_gtdb = None
+        tax_ncbi_unfiltered = None # raw string from gtdb
         
         tax_gtdb = {}
         tax_ncbi = {}
@@ -188,12 +191,6 @@ for content in fo_tar.getmembers():
                 accession = entry.replace('GB_','').replace('RS_','')
             if column == 'ncbi_genbank_assembly_accession':
                 accession_ncbi = entry
-            #/
-            # parse ...?
-            if column == 'gtdb_genome_representative':
-                genome_representative_gtdb = entry
-            if column == 'gtdb_representative':
-                representative_gtdb = entry
             #/
             # parse gtdb taxonomy
             if column == 'gtdb_taxonomy':
@@ -215,6 +212,11 @@ for content in fo_tar.getmembers():
                         if chunk.find(check_key) != -1:
                             tax_ncbi[tax] = chunk.replace(check_key,'')
             #/
+            # parse ncbi unfiltered taxonomy
+            if column == 'ncbi_taxonomy_unfiltered':
+                tax_ncbi_unfiltered = entry
+                
+            #/
             # parse ncbi strain identifiers
             if column == 'ncbi_strain_identifiers':
                 if entry != 'none':
@@ -228,8 +230,9 @@ for content in fo_tar.getmembers():
         #/
         # compile save data
         save_data = {'accession':accession,'accession_ncbi':accession_ncbi,
-                     'tax_gtdb':tax_gtdb,'tax_ncbi':tax_ncbi,
-                     'strain_ID_ncbi':strain_ID_ncbi}
+                     'tax_gtdb':tax_gtdb,'tax_ncbi':tax_ncbi,'tax_ncbi_unfiltered':tax_ncbi_unfiltered,
+                     'strain_ID_ncbi':strain_ID_ncbi,
+                     'is_rep':is_gtdb_rep}
         #/
         # remove spaces and redundant information in "species" taxonomy tag
         for db in ('gtdb','ncbi',):
@@ -315,8 +318,8 @@ if outgroup_accession:
     else:
         tax_level_upper_accessions[outgroup_accession] = accessions_data[outgroup_accession]
     #/
-    
-else: # else, get one via metadata
+# else, get outgroup from metadata
+else:
     # Find upper level
     tax_level_upper = None
     for i in range(len(taxonomy_ordered)):
@@ -334,10 +337,10 @@ else: # else, get one via metadata
         tax_level_upper_val = any_data['tax_gtdb'][tax_level_upper]
         break
     #/
-    # Get a sample at val_level_upper that is not part of target set
+    # Get a sample at val_level_upper that is not part of target set and that is a GTDB rep-species
     for any_acc,any_data in accessions_data.items():
         if any_acc in accessions_selected: continue # skip if part of selected targets
-        if any_data['tax_gtdb'][tax_level_upper] == tax_level_upper_val:
+        if any_data['tax_gtdb'][tax_level_upper] == tax_level_upper_val and any_data['is_rep']:
             tax_level_upper_accessions[any_acc] = any_data
             
             # Only get X amount of higher-tax organisms
