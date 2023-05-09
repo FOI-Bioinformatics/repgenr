@@ -71,6 +71,19 @@ def format_acc_output_file(acc_data_entry):
     tax = acc_data_entry['tax_gtdb']
     return tax['family']+'_'+tax['genus']+'_'+tax['species']+'_'+acc_data_entry['accession']+'.fasta'
 
+## Remove accessions that do not exist in the input
+if os.path.exists(workdir+'/'+'genomes'):
+    for file_ in os.listdir(workdir+'/'+'genomes'):
+        fam,gen,spec,acn_type,acn_plusExtension = file_.split('_')
+        acn = acn_plusExtension.replace('.fasta.gz','').replace('.fasta','')
+        
+        accession = acn_type+'_'+acn
+        
+        if not accession in accessions:
+            os.remove(workdir+'/'+'genomes'+'/'+file_)
+            print('Removed '+ file_ +' (no longer exists in input)')
+##/
+
 ## Get accessions that have not been downloaded yet
 accessions_to_download = []
 for acc,data in accessions.items():
@@ -80,19 +93,6 @@ for acc,data in accessions.items():
         accessions_to_download.append(acc)
     #/
 print('Will try to download '+str(len(accessions_to_download))+' genomes...')
-##/
-
-## Remove accessions that do not exist in the input
-if os.path.exists(workdir+'/'+'genomes'):
-    for file_ in os.listdir(workdir+'/'+'genomes'):
-        fam,gen,spec,acn_type,acn_plusExtension = file_.split('_')
-        acn = acn_plusExtension.replace('.fasta.gz','')
-        
-        accession = acn_type+'_'+acn
-        
-        if not accession in accessions:
-            os.remove(workdir+'/'+'genomes'+'/'+file_)
-            print('Removed '+ file_ +' (no longer exists in input)')
 ##/
 
 ## Dump list of accessions for "ncbi datasets" software
@@ -133,30 +133,36 @@ except:
 
 ### Unpack genomes from downloaded zip (into formatted gzipped files)
 print('Unpacking genomes from NCBI download into "genomes"-folder...')
-
-with zipfile.ZipFile(workdir+'/'+'ncbi_download.zip','r') as zip_fo:
-    if not os.path.exists(workdir+'/'+'genomes'):        os.makedirs(workdir+'/'+'genomes')
-    zip_fo.extractall(workdir+'/'+'ncbi_extract')
-
-    # subdir will be at ../ncbi_extract/ncbi_dataset/data/GCx_XXXXXX in extracted folder
-    for path,dirnames,filenames in os.walk(workdir+'/'+'ncbi_extract'):
-        for dirname in dirnames:
-            if dirname in accessions:
-                # Get file from directory
-                genome_fa_path = None
-                for file_ in os.listdir(path+'/'+dirname):
-                    if file_.endswith('.fna'):
-                        genome_fa_path = path+'/'+dirname+'/'+file_
-                        break
-                
-                if not genome_fa_path:
-                    print('Could not locate genome fasta for downloaded accession: '+dirname)
-                
-                # copy genome file to genomes folder
-                acc_genome_file = format_acc_output_file(accessions[dirname])
-                genome_fa_target_path = workdir+'/'+'genomes'+'/'+acc_genome_file
-                shutil.copy(genome_fa_path,genome_fa_target_path)
-                #/
+try:
+    with zipfile.ZipFile(workdir+'/'+'ncbi_download.zip','r') as zip_fo:
+        if not os.path.exists(workdir+'/'+'genomes'):        os.makedirs(workdir+'/'+'genomes')
+        zip_fo.extractall(workdir+'/'+'ncbi_extract')
+    
+        # subdir will be at ../ncbi_extract/ncbi_dataset/data/GCx_XXXXXX in extracted folder
+        for path,dirnames,filenames in os.walk(workdir+'/'+'ncbi_extract'):
+            for dirname in dirnames:
+                if dirname in accessions:
+                    # Get file from directory
+                    genome_fa_path = None
+                    for file_ in os.listdir(path+'/'+dirname):
+                        if file_.endswith('.fna'):
+                            genome_fa_path = path+'/'+dirname+'/'+file_
+                            break
+                    
+                    if not genome_fa_path:
+                        print('Could not locate genome fasta for downloaded accession: '+dirname)
+                    
+                    # copy genome file to genomes folder
+                    acc_genome_file = format_acc_output_file(accessions[dirname])
+                    genome_fa_target_path = workdir+'/'+'genomes'+'/'+acc_genome_file
+                    shutil.copy(genome_fa_path,genome_fa_target_path)
+                    #/
+except zipfile.BadZipFile:
+    print('ZIP-file from NCBI download appears to be corrupted - was the connection interrupted? Try re-running this module to see if network issues persist.')
+    sys.exit()
+except FileNotFoundError:
+    print('ZIP-file from NCBI download was not found - was the connection interrupted? Try re-running this module to see if network issues persist.')
+    sys.exit()
         
 # remove ZIP file
 print('Cleaning workspace...')
