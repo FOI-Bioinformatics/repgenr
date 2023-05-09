@@ -10,11 +10,12 @@ import os
 import subprocess
 import argparse
 
-# Take input arguments
+# Check if valid input arguments (script name + module)
 args = sys.argv
 if not len(args) >= 2:
     args.append('') # dummy-add something to trigger error-print below
-    
+#/
+# Check which module was requested
 wrapper = args[0]
 module = args[1]
 module_args = args[2:]
@@ -23,9 +24,28 @@ if not module in ('metadata','genome','derep','phylo','tree2tax',):
     if module != '':
         print('error: module "'+module.replace('.py','')+'" does not exist!')
     sys.exit()
+#/
+# Check if arguments are input multiple times
+args_count = {}
+for arg in args:
+    if not arg in args_count:       args_count[arg] = 0
+    args_count[arg] += 1
 
+args_count_multiple = []
+for arg,count in args_count.items():
+    if arg[0] == '-' or arg[:2] == '--':
+        if count >= 2:
+            args_count_multiple.append([arg,count])
+
+if args_count_multiple:
+    print('[WARNING] Found multiple inputs of arguments:')
+    for arg,count in args_count_multiple:
+        print(arg+'\t'+str(count))
+    print(' '.join(args))
+    print('Please specify arguments once. Terminating!')
+    sys.exit()
+#/
 cmd = [module+'.py'] + module_args
-
 print('[DEBUG] Wrapper CMD:')
 print(cmd)
 print()
