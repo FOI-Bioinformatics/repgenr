@@ -71,13 +71,15 @@ cmd_cp = ['cp','-r',workdir+'/drep_workdir/dereplicated_genomes/*',workdir+'/gen
 subprocess.call(' '.join(map(str,cmd_cp)),shell=True)
 ###/
 
-### Get info about representative sequences and contained sequences
+### Get info about representative sequences and contained sequences and failed genomes
+genomes_status = {} # genome -> "status in [representative,contained,failed]"
+
 ## Parse genome representatives
 genome_representatives = {} # representative_file_name -> cluster (cluster is parsed below)
 for file_ in os.listdir(workdir+'/'+'drep_workdir/dereplicated_genomes'):
     genome_representatives[file_] = None
 ##/
-## Write info about cluster-contained genomes
+## Parse cluster-contained genomes
 clusters_genomes = {}
 with open(workdir+'/'+'drep_workdir/data_tables/Cdb.csv','r') as f:
     for enum,line in enumerate(f):
@@ -92,15 +94,39 @@ with open(workdir+'/'+'drep_workdir/data_tables/Cdb.csv','r') as f:
         # check if current line is the representative
         if genome in genome_representatives:
             genome_representatives[genome] = clust
+            genomes_status[genome] = 'representative'
+        else:
+            genomes_status[genome] = 'contained'
         #/
 ##/
-## Write out
+## Get genomes that was not involved in dereplication (i.e., failed checkM or similar)
+with open(workdir+'/'+'drep_workdir/data_tables/genomeInformation.csv','r') as f:
+    for enum,line in enumerate(f):
+        # Expected columns:
+        # genome	completeness	contamination	strain_heterogeneity	length	N50	centrality
+        # centrality appears so be set to 0 for genomes that were not involved in formation of derep clusters
+        if enum == 0: continue # skip header
+        genome,_completeness,_contamination,_strainHeterogeneity,_length,_N50,centrality = line.split(',')
+        
+        try:
+            if float(centrality) == 0:
+                genomes_status[genome] = 'fail_qc'
+        except:
+            print('Unexpected data in dRep file "genomeInformation". Please open issue.')
+##/
+## Write cluster-contained genomes
 with open(workdir+'/'+'derep_clustered_genomes.tsv','w') as nf:
     for genome_rep,clust in genome_representatives.items():
         for genome_contained in clusters_genomes[clust]:
             if genome_contained == genome_rep: continue # skip self
             writeArr = [genome_rep,genome_contained]
             nf.write('\t'.join(writeArr)+'\n')
+##/
+## Write genome status
+with open(workdir+'/'+'derep_genome_status.tsv','w') as nf:
+    for genome,status in genomes_status.items():
+        writeArr = [genome,status]
+        nf.write('\t'.join(writeArr)+'\n')
 ##/
 ###/
 ### Write ANI-thresh used
