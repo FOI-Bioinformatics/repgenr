@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-### IDE: this script was before "derep.py". The new "derep.py" is a wrapper around this script that enable chunking of large datasets.
-
 import argparse
 import os
 import sys
