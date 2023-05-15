@@ -20,8 +20,9 @@ if not len(args) >= 2:
 wrapper = args[0]
 module = args[1]
 module_args = args[2:]
-if not module in ('metadata','genome','derep','phylo','tree2tax',):
-    print('Usage: '+wrapper+' module {metadata,genome,derep,phylo,tree2tax}')
+repgenr_modules = ('metadata','genome','glance','derep','phylo','tree2tax',)
+if not module in repgenr_modules:
+    print('Usage: '+wrapper+' module {'+','.join(repgenr_modules)+'}')
     if module != '':
         print('error: module "'+module.replace('.py','')+'" does not exist!')
     sys.exit()
