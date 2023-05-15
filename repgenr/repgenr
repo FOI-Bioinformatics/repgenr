@@ -9,6 +9,7 @@ import sys
 import os
 import subprocess
 import argparse
+import time
 
 # Check if valid input arguments (script name + module)
 args = sys.argv
@@ -50,11 +51,23 @@ print('[DEBUG] Wrapper CMD:')
 print(cmd)
 print()
 
-if 0:
-    os.system(' '.join(cmd))
 
 if 1:
+    if not {'-h','--help'}.intersection(args_count):
+        subprocess.call('printf "[INFO][TIMESTAMP][START] " && date',shell=True)
+    
+    time_start = time.time()
     subprocess.call(' '.join(cmd),shell=True)
+    time_end = time.time()
+    
+    if not {'-h','--help'}.intersection(args_count):
+        subprocess.call('printf "[INFO][TIMESTAMP][END] " && date',shell=True)
+    
+    if not {'-h','--help'}.intersection(args_count):
+        time_delta = time_end - time_start
+        mins,secs = divmod(time_delta,60)
+        hours,mins = divmod(mins,60)
+        print('[INFO][RUNTIME] '+f'Elapsed time: {int(hours):02d} hours and {int(mins):02d} minutes')
 
 if 0:
     process = subprocess.Popen(' '.join(cmd),shell=True,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
