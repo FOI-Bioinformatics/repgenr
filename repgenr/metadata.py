@@ -215,7 +215,6 @@ for content in fo_tar.getmembers():
             # parse ncbi unfiltered taxonomy
             if column == 'ncbi_taxonomy_unfiltered':
                 tax_ncbi_unfiltered = entry
-                
             #/
             # parse ncbi strain identifiers
             if column == 'ncbi_strain_identifiers':
@@ -390,7 +389,7 @@ bar_species = ax.bar(xvals[2],yvals[2],label='species')
 ax.xaxis.set_ticks(list(range(len(x_vals))))
 ax.xaxis.set_ticklabels(x_vals,rotation=90)
 plt.legend(loc='upper right')
-plt.title('Number of datasets in eachttps://gtdb.ecogenomic.org/genome?gid=GCF_000297215.2h taxonomic level')
+plt.title('Number of datasets in each taxonomic level')
 plt.tight_layout()
 plt.savefig(workdir+'/'+'metadata_summary_number_in_level.png',dpi=200)
 #/
