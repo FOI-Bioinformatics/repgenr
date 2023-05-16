@@ -301,9 +301,9 @@ else:
     drep_secondary_run = True
     # Check if we prompt to continue before proceeding to 2nd round of dRep
     if prompt_before_step2:
-        usr_inp = input('Continue with second round of dRep? (y/n) ')
-        if not usr_inp in ('Y','y','yes'):
-            sys.exit('Terminating sotware')
+        usr_inp = input('Continue with second round of dRep? (y/n) ').strip()
+        if not usr_inp.lower() in ('y','yes'):
+            sys.exit('User input: '+usr_inp+', terminating sotware')
     #/
     ## Setup intermediate data
     if not skip_intermediary:
