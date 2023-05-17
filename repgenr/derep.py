@@ -63,6 +63,13 @@ if not os.path.exists(workdir):
 #/
 ###/
 
+### Check so genomes-dir exists (required by this script)
+if not os.path.exists(workdir+'/'+'genomes'):
+    print('Could not locate genome directory inside specified workdir (make sure you have run "metadata" and "genome" commands):')
+    print(workdir)
+    sys.exit()
+###/
+
 
 ### init workspace for chunking
 # Define workingdir for chunking and make it (./dereplication_workdir with subfolder "intra_chunks" (stage1: drep on chunked genomes) and "inter_chunks" (stage2: drep on output from stage1)
@@ -303,7 +310,7 @@ else:
     if prompt_before_step2:
         usr_inp = input('Continue with second round of dRep? (y/n) ').strip()
         if not usr_inp.lower() in ('y','yes'):
-            sys.exit('User input: '+usr_inp+', terminating sotware')
+            sys.exit('User input: '+usr_inp+', terminating software')
     #/
     ## Setup intermediate data
     if not skip_intermediary:

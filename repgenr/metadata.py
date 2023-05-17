@@ -239,6 +239,12 @@ for content in fo_tar.getmembers():
             save_data['tax_'+db]['species'] = save_data['tax_'+db]['species'].replace(' ','')
             save_data['tax_'+db]['species'] = save_data['tax_'+db]['species'].replace('_','-')
         #/
+        # remove spaces and other signs in "family"/"genus" taxonomy tag. NOTE: must do this after correcting the species-tag since we replace some info in species tag with info from genus tag
+        for tax in ('genus','family',):
+            for db in ('gtdb','ncbi',):
+                save_data['tax_'+db][tax] = save_data['tax_'+db][tax].replace(' ','')
+                save_data['tax_'+db][tax] = save_data['tax_'+db][tax].replace('_','-')
+        #/
         # save to outer
         accessions_data[accession] = save_data
         #/
@@ -261,13 +267,13 @@ for acc,data in accessions_data.items():
     #@ check if we have species + genus input
     target_found = False
     if target_species and target_genus:
-        if target_species.lower() == data['tax_gtdb']['species'].lower() and target_genus.lower() == data['tax_gtdb']['genus'].lower():
+        if target_species.lower().replace('_','-') == data['tax_gtdb']['species'].lower() and target_genus.lower().replace('_','-') == data['tax_gtdb']['genus'].lower():
             target_found = True
     #@ else do without species
     if (target_genus or target_family) and not target_species:
-        if target_genus and target_genus.lower() == data['tax_gtdb']['genus'].lower():
+        if target_genus and target_genus.lower().replace('_','-') == data['tax_gtdb']['genus'].lower():
             target_found = True
-        if target_family and target_family.lower() == data['tax_gtdb']['family'].lower():
+        if target_family and target_family.lower().replace('_','-') == data['tax_gtdb']['family'].lower():
             target_found = True
     #/
     # if match to target, get values for other samples at all levels until the specified level (e.g. level='species' must match family,genus,species and level='family' must match on family)

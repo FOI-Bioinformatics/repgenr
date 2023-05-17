@@ -29,6 +29,13 @@ if not os.path.exists(workdir):
 #/
 ###/
 
+### Check so genomes-dir exists (required by this script)
+if not os.path.exists(workdir+'/'+'genomes'):
+    print('Could not locate genome directory inside specified workdir (make sure you have run "metadata" and "genome" commands):')
+    print(workdir)
+    sys.exit()
+###/
+
 ## Run dRep compare. It will produce a PDF-output with a mash-tree dendogram.
 print('Computing ANI mash-tree with dRep using subcommand compare...')
 cmd_drep_compare = ['dRep','compare',

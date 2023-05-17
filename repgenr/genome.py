@@ -106,70 +106,72 @@ if halt_after_accession_list:
 
 ## Download genome fastas
 print('Running NCBI-DATASETS software (download genomes)')
-
-ncbi_datasets_cmd = ['datasets','download','genome','accession',
-                     '--inputfile',workdir+'/'+'ncbi_acc_download_list.txt',
-                     '--filename',workdir+'/'+'ncbi_download.zip']
-try:
-    ncbi_datasets_process = subprocess.Popen(ncbi_datasets_cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-    while ncbi_datasets_process.poll() is None:
-        line_raw = ncbi_datasets_process.stdout.readline() # bufsize?
-        line = line_raw.decode()
-        line = line.strip('\n')
-        if not line: continue
-    
-        # write status update lines with carriage return
-        if line.startswith('Downloading') or (line.find('Collecting') != -1 and line.find('records') != -1):
-            print('[NCBI-DATASETS] ' + line)
-            pass
-        else:
-            print('[NCBI-DATASETS] ' + line)
-except:
-    print('Failed to download from NCBI using "datasets"-software. You can try to run the command manually:')
-    print(' '.join(ncbi_datasets_cmd))
-    sys.exit()
-##/
-###/
-
-### Unpack genomes from downloaded zip (into formatted gzipped files)
-print('Unpacking genomes from NCBI download into "genomes"-folder...')
-try:
-    with zipfile.ZipFile(workdir+'/'+'ncbi_download.zip','r') as zip_fo:
-        if not os.path.exists(workdir+'/'+'genomes'):        os.makedirs(workdir+'/'+'genomes')
-        zip_fo.extractall(workdir+'/'+'ncbi_extract')
-    
-        # subdir will be at ../ncbi_extract/ncbi_dataset/data/GCx_XXXXXX in extracted folder
-        for path,dirnames,filenames in os.walk(workdir+'/'+'ncbi_extract'):
-            for dirname in dirnames:
-                if dirname in accessions:
-                    # Get file from directory
-                    genome_fa_path = None
-                    for file_ in os.listdir(path+'/'+dirname):
-                        if file_.endswith('.fna'):
-                            genome_fa_path = path+'/'+dirname+'/'+file_
-                            break
-                    
-                    if not genome_fa_path:
-                        print('Could not locate genome fasta for downloaded accession: '+dirname)
-                    
-                    # copy genome file to genomes folder
-                    acc_genome_file = format_acc_output_file(accessions[dirname])
-                    genome_fa_target_path = workdir+'/'+'genomes'+'/'+acc_genome_file
-                    shutil.copy(genome_fa_path,genome_fa_target_path)
-                    #/
-except zipfile.BadZipFile:
-    print('ZIP-file from NCBI download appears to be corrupted - was the connection interrupted? Try re-running this module to see if network issues persist.')
-    sys.exit()
-except FileNotFoundError:
-    print('ZIP-file from NCBI download was not found - was the connection interrupted? Try re-running this module to see if network issues persist.')
-    sys.exit()
+if accessions_to_download:
+    ncbi_datasets_cmd = ['datasets','download','genome','accession',
+                         '--inputfile',workdir+'/'+'ncbi_acc_download_list.txt',
+                         '--filename',workdir+'/'+'ncbi_download.zip']
+    try:
+        ncbi_datasets_process = subprocess.Popen(ncbi_datasets_cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+        while ncbi_datasets_process.poll() is None:
+            line_raw = ncbi_datasets_process.stdout.readline() # bufsize?
+            line = line_raw.decode()
+            line = line.strip('\n')
+            if not line: continue
         
-# remove ZIP file
-print('Cleaning workspace...')
-os.remove(workdir+'/'+'ncbi_download.zip')
-shutil.rmtree(workdir+'/'+'ncbi_extract')
-#os.remove(workdir+'/'+'ncbi_acc_download_list.txt')
-#/
+            # write status update lines with carriage return
+            if line.startswith('Downloading') or (line.find('Collecting') != -1 and line.find('records') != -1):
+                print('[NCBI-DATASETS] ' + line)
+                pass
+            else:
+                print('[NCBI-DATASETS] ' + line)
+    except:
+        print('Failed to download from NCBI using "datasets"-software. You can try to run the command manually:')
+        print(' '.join(ncbi_datasets_cmd))
+        sys.exit()
+    ##/
+    ###/
+    
+    ### Unpack genomes from downloaded zip (into formatted gzipped files)
+    print('Unpacking genomes from NCBI download into "genomes"-folder...')
+    try:
+        with zipfile.ZipFile(workdir+'/'+'ncbi_download.zip','r') as zip_fo:
+            if not os.path.exists(workdir+'/'+'genomes'):        os.makedirs(workdir+'/'+'genomes')
+            zip_fo.extractall(workdir+'/'+'ncbi_extract')
+        
+            # subdir will be at ../ncbi_extract/ncbi_dataset/data/GCx_XXXXXX in extracted folder
+            for path,dirnames,filenames in os.walk(workdir+'/'+'ncbi_extract'):
+                for dirname in dirnames:
+                    if dirname in accessions:
+                        # Get file from directory
+                        genome_fa_path = None
+                        for file_ in os.listdir(path+'/'+dirname):
+                            if file_.endswith('.fna'):
+                                genome_fa_path = path+'/'+dirname+'/'+file_
+                                break
+                        
+                        if not genome_fa_path:
+                            print('Could not locate genome fasta for downloaded accession: '+dirname)
+                        
+                        # copy genome file to genomes folder
+                        acc_genome_file = format_acc_output_file(accessions[dirname])
+                        genome_fa_target_path = workdir+'/'+'genomes'+'/'+acc_genome_file
+                        shutil.copy(genome_fa_path,genome_fa_target_path)
+                        #/
+    except zipfile.BadZipFile:
+        print('ZIP-file from NCBI download appears to be corrupted - was the connection interrupted? Try re-running this module to see if network issues persist.')
+        sys.exit()
+    except FileNotFoundError:
+        print('ZIP-file from NCBI download was not found - was the connection interrupted? Try re-running this module to see if network issues persist.')
+        sys.exit()
+            
+    # remove ZIP file
+    print('Cleaning workspace...')
+    os.remove(workdir+'/'+'ncbi_download.zip')
+    shutil.rmtree(workdir+'/'+'ncbi_extract')
+    #os.remove(workdir+'/'+'ncbi_acc_download_list.txt')
+    #/
+else:
+    print('All genomes were already downloaded!')
 ###/
 
 ### Download outgroup sample
