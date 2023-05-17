@@ -65,10 +65,6 @@ if not os.path.exists(workdir+'/glance_wd'):
 print('Retrieving PDF...')
 cmd_cp = ['cp',workdir+'/glance_wd/figures/Primary_clustering_dendrogram.pdf',workdir+'/glance_clustering_dendogram.pdf']
 subprocess.call(' '.join(map(str,cmd_cp)),shell=True)
-
-if not keep_files:
-    print('Cleaning workspace')
-    shutil.rmtree(workdir+'/'+'glance_wd')
 ##/
 
 ## Compute a boxplot of ANI values from the Mdb.csv file
@@ -113,6 +109,12 @@ if os.path.exists(workdir+'/glance_wd/data_tables/Mdb.csv'):
     #/
 else:
     print('Could not locate Mdb.csv file. Boxplot/Histogram files will not be output. Make sure dRep compare was run properly')
+##/
+
+## Clean workspace
+if not keep_files:
+    print('Cleaning workspace')
+    shutil.rmtree(workdir+'/'+'glance_wd')
 ##/
 
 ## Print final
