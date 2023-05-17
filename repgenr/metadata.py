@@ -311,6 +311,9 @@ for acc,data in accessions_data.items():
             break
         #/
 ##/
+## Print info
+print('Found '+str(len(accessions_selected))+' entries!')
+##/
 ## Get organism at upper taxonomic level (for rooting phylogenetic tree by using an outgroup organism)
 tax_level_upper_accessions = {}
 # Parse manually assigned accession
