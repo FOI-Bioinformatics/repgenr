@@ -111,7 +111,14 @@ for file_ in os.listdir(workdir+'/'+'genomes'):
         if process_size != False and len(downloaded_genomes_chunked[-1]) >= process_size:      downloaded_genomes_chunked.append([]) # previous chunk is filled
         #/
         downloaded_genomes_chunked[-1].append(file_)
-        
+
+#@ Check if there's a single genome in last chunk. If so, append it to next-to-last chunk
+if downloaded_genomes_chunked and len(downloaded_genomes_chunked[-1]) == 1:
+    print('When splitting input into chunks, the last chunk had only one genome. Will move this genome to another chunk.')
+    downloaded_genomes_chunked[-2] += downloaded_genomes_chunked[-1] # append last chunk to next-to-last
+    del downloaded_genomes_chunked[-1] # remove last
+#@/
+
 print('Total of '+str(sum(map(len,downloaded_genomes_chunked)))+ ' downloaded genomes were split into '+str(len(downloaded_genomes_chunked))+' jobs')
 #/
 # Soft-link genomes into chunked workspaces
