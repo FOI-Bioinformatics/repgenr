@@ -315,8 +315,8 @@ else:
     drep_secondary_run = True
     # Check if we prompt to continue before proceeding to 2nd round of dRep
     if prompt_before_step2:
-        usr_inp = input('Continue with second round of dRep? (y/n) ').strip()
-        if not usr_inp.lower() in ('y','yes'):
+        usr_inp = input('Proceed with second round of dRep? (no/n to terminate) ').strip()
+        if usr_inp.lower() in ('n','no'):
             sys.exit('User input: '+usr_inp+', terminating software')
     #/
     ## Setup intermediate data
