@@ -6,5 +6,5 @@ setuptools.setup(
     author='jaclew',
     description='no_description',
     packages=['repgenr'],
-    scripts=['repgenr/repgenr','repgenr/metadata.py','repgenr/genome.py','repgenr/glance.py','repgenr/derep.py','repgenr/derep_worker.py','repgenr/phylo.py','repgenr/tree2tax.py','repgenr/x2fa.py']
+    scripts=['repgenr/repgenr','repgenr/metadata.py','repgenr/genome.py','repgenr/glance.py','repgenr/derep.py','repgenr/derep_worker.py','repgenr/derep_stocker.py','repgenr/phylo.py','repgenr/tree2tax.py','repgenr/x2fa.py']
 )
