@@ -151,12 +151,12 @@ if run_mode == 'accurate':
         
         # Run x2fa
         print('\nExecuting x2fa.py')
-        pmauve_cmd = ['x2fa.py',query_xmfa_out,reference_path,0,query_fa_out]
+        pmauve_cmd = ['python2','x2fa.py',query_xmfa_out,reference_path,0,query_fa_out]
         subprocess.call(' '.join(map(str,pmauve_cmd)),shell=True)
         #/
         
         # Check if output file was created, else return false
-        have_output = False
+        pmauve_has_output = False
         if os.path.exists(query_fa_out) and os.path.getsize(query_fa_out) > 0:
             pmauve_has_output = True
         #/
