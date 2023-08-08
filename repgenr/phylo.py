@@ -17,7 +17,7 @@ parser.add_argument('-wd','--workdir',required=True,help='Path to working direct
 parser.add_argument('-t','--threads',type=int,default=16,help='Number of total threads to use (default: 16)')
 parser.add_argument('--no_outgroup',action='store_true',help='If specified, will not include the outgroup organism into the tree calculation')
 parser.add_argument('--all_genomes',action='store_true',help='If specified, will run on all genomes and not on de-replicated genomes')
-parser.add_argument('--keep_files',action='store_true',help='If specified, will save intermediary files (accruate-mode only)')
+parser.add_argument('--keep_files',action='store_true',help='If specified, will save intermediary files (accurate-mode only)')
 #/
 # parse input
 args = parser.parse_args()
@@ -151,7 +151,7 @@ if run_mode == 'accurate':
         
         # Run x2fa
         print('\nExecuting x2fa.py')
-        pmauve_cmd = ['/data/users/jaclew/projects/2022/refDB_cond/x2fa.py',query_xmfa_out,reference_path,0,query_fa_out]
+        pmauve_cmd = ['x2fa.py',query_xmfa_out,reference_path,0,query_fa_out]
         subprocess.call(' '.join(map(str,pmauve_cmd)),shell=True)
         #/
         
