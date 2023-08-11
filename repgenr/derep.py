@@ -10,13 +10,14 @@ from multiprocessing import Pool
 
 """
 Example of chunking:
-    Suppose we have 5000 genomes to dereplicate. Dereplicating them as one process takes too long time, therefore we wish to chunk the work up into 10 manageable batches.
+    Suppose there are 5000 genomes to dereplicate. Dereplicating them in one process takes too long time. Therefore, we chunk the work up into 10 manageable batches.
     command: rengenr derep --process_size 500 --num_processes 10 --threads 50
     The command will divide the 5000 genomes into batches of 500 genomes each. It will run them all in parallel (as 10 different processes) at 50 threads total, 5 threads per process.
     If we want to make it less parallel, we lower the number of procsses
     command: rengenr derep --process_size 500 --num_processes 2 --threads 50
     Now it will run them 2 processses in parallel at 50 threads total, 25 threads per process.
 """
+
 ### Parse input arguments
 # setup
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -434,7 +435,7 @@ if drep_secondary_run:
 ## Mark which genomes were final representants
 genomes_representants = list(os.listdir(workdir+'/'+'genomes_derep_representants'))
 ##/
-## Write summary file
+## Write summary file (columns: file_name, representative (bool), QC status, ?
 with open(workdir+'/'+'derep_genomes_status.tsv','w') as nf:
     # Header:
     # genome, representative genome (bool), stage1 status, stage2 status
@@ -480,4 +481,10 @@ with open(workdir+'/'+'derep_parameters.txt','w') as nf:
     nf.write('pre_primary_ani'+'\t'+str(pre_primary_ani)+'\n')
     nf.write('pre_secondary_ani'+'\t'+str(pre_secondary_ani)+'\n')
     nf.write('S_algorithm'+'\t'+str(S_algorithm)+'\n')
+###/
+
+### Summarize contained/dereplicated-and-removed genomes.
+### NOTE: I do this in a function so that previous uses of repgenr can summarize their derep results by [python -c "from derep import summarize_derep_genomes; workdir=<workdir path used when running repgenr>; summarize_derep_genomes()"]
+from derep_summarize import summarize_derep_genomes
+summarize_derep_genomes(workdir)
 ###/
