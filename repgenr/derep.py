@@ -33,6 +33,7 @@ parser.add_argument('-s','--process_size',type=int,default=False,help='Number of
 parser.add_argument('--keep_files',action='store_true',help='If specified, will save intermediary files')
 parser.add_argument('--skip_intermediary',action='store_true',help='If specified, will not attempt to recycle intermediary files from dRep')
 parser.add_argument('--prompt',action='store_true',help='If specified and using the "chunking" feature (process_size < "number of input genomes") will prompt to continue to secondary dRep-run. This can be used to adjust parameters in the first round of dRep that is run on chunks.')
+parser.add_argument('--secondary_only',action='store_true',help='If specified, will only do the second round of dRep on previously generated data from "chunks"')
 #/
 # parse input
 args = parser.parse_args()
@@ -55,11 +56,17 @@ if pre_primary_ani == None:         pre_primary_ani = primary_ani # set to same 
 keep_files = args.keep_files
 skip_intermediary = args.skip_intermediary
 prompt_before_step2 = args.prompt
+
+drep_secondary_run_only = args.secondary_only
 #/
 # validate input
 if not os.path.exists(workdir):
     print('Could not locate working directory (make sure you have run "metadata" and "genome" commands):')
     print(workdir)
+    sys.exit()
+    
+if drep_secondary_run_only and not os.path.exists(workdir+'/'+'derep_chunks_representative_genomes.tsv'):
+    print('A secondary-only run was specified, but could not locate previous output files of stage 1!')
     sys.exit()
 #/
 ###/
@@ -120,7 +127,8 @@ if downloaded_genomes_chunked and len(downloaded_genomes_chunked[-1]) == 1:
     del downloaded_genomes_chunked[-1] # remove last
 #@/
 
-print('Total of '+str(sum(map(len,downloaded_genomes_chunked)))+ ' downloaded genomes were split into '+str(len(downloaded_genomes_chunked))+' jobs')
+if not drep_secondary_run_only: # dont print this status if we only do stage2
+    print('Total of '+str(sum(map(len,downloaded_genomes_chunked)))+ ' downloaded genomes were split into '+str(len(downloaded_genomes_chunked))+' jobs')
 #/
 # Soft-link genomes into chunked workspaces
 print('Soft-linking genomes into subprocess workding directories')
@@ -199,7 +207,7 @@ if not skip_intermediary_readFiles:
 ###/
 
 ### Run drep on chunks (stage 1, dereplication intra-chunk)
-## Define multiprocessing worker
+## Define multiprocessing worker (used for stage1 and stage2)
 def drep_worker(wd,pani,sani,threads,print_status):
     if print_status:            print(print_status + ' started...')
     # Run drep
@@ -214,105 +222,112 @@ def drep_worker(wd,pani,sani,threads,print_status):
     if print_status:            print(print_status + ' finished!')
     return drep_output_dir
 ##/
-## setup multiprocessing
-# Check how many parallel processes can be run
-num_processes = min(num_processes,len(downloaded_genomes_chunked))
-num_threads_per_process = int(num_threads/num_processes)
-print('Processing genomes (number of parallel processes is '+str(num_processes)+ ' at '+str(num_threads_per_process)+' threads each)')
-#/
-##/
-## start jobs
-pool = Pool(processes=num_processes)
-jobs = {}
-for enum,chunk_wd in enumerate(os.listdir(intra_chunks_wd)):
-    chunk_wd_path = intra_chunks_wd+'/'+chunk_wd
-    # Check so we have the expected folder structure
-    if not os.path.exists(chunk_wd_path+'/'+'genomes'):
-        print('Incorrect folder structure found for directory '+chunk_wd+'\n\tskipping...')
-        continue
+# Execute first round stage 1 (skip if user said to do round 2 only)
+if not drep_secondary_run_only:
+    ## setup multiprocessing
+    # Check how many parallel processes can be run
+    num_processes = min(num_processes,len(downloaded_genomes_chunked))
+    num_threads_per_process = int(num_threads/num_processes)
+    print('Processing genomes (number of parallel processes is '+str(num_processes)+ ' at '+str(num_threads_per_process)+' threads each)')
     #/
-    print_status = '[worker '+str(enum+1)+'/'+str(len(downloaded_genomes_chunked))+']' # Idea: Print-status holds the ID of the worker. It will display " [worker 1/50] " (input ID) followed by "started..." and --::-- " finished!" (appended in worker-function)
-    jobs[chunk_wd] = pool.apply_async(drep_worker,args=(chunk_wd_path,pre_primary_ani,pre_secondary_ani,num_threads_per_process,print_status))
-    #break
-pool.close()
-pool.join()
-##/
-## parse jobs
-jobs_status = {}
-for chunk_wd,job in jobs.items():
-    jobs_status[chunk_wd] = job.get()
-
-print('\tProcessing done!')
-##/
-###/
-
-### Fetch output of chunks (prepare for stage 2)
-print('Fetching genomes from stage 1')
-# init genomes directory in inter-chunks (stage 2)
-inter_chunks_wd_genomes_path = inter_chunks_wd + '/' + 'genomes'
-if not os.path.exists(inter_chunks_wd_genomes_path):        os.makedirs(inter_chunks_wd_genomes_path)
-#/
-# Setup genome-directory in inter-chunks
-genomes_stage1 = []
-failed_jobs = []
-Chdb_genome_entries = {} # for intermediary file (Chdb)
-Chdb_header = 'header_placeholder\n' # will be re-assigned upon file reading
-for chunk,chunk_output_path in jobs_status.items():
-    # Check if this chunk did not execute properly
-    if chunk_output_path == False:
-        print('Job '+chunk+' failed with error!')
-        failed_jobs.append(chunk)
-        continue
+    ##/
+    ## start jobs
+    pool = Pool(processes=num_processes)
+    jobs = {}
+    for enum,chunk_wd in enumerate(os.listdir(intra_chunks_wd)):
+        chunk_wd_path = intra_chunks_wd+'/'+chunk_wd
+        # Check so we have the expected folder structure
+        if not os.path.exists(chunk_wd_path+'/'+'genomes'):
+            print('Incorrect folder structure found for directory '+chunk_wd+'\n\tskipping...')
+            continue
+        #/
+        print_status = '[worker '+str(enum+1)+'/'+str(len(downloaded_genomes_chunked))+']' # Idea: Print-status holds the ID of the worker. It will display " [worker 1/50] " (input ID) followed by "started..." and --::-- " finished!" (appended in worker-function)
+        jobs[chunk_wd] = pool.apply_async(drep_worker,args=(chunk_wd_path,pre_primary_ani,pre_secondary_ani,num_threads_per_process,print_status))
+        #break
+    pool.close()
+    pool.join()
+    ##/
+    ## parse jobs
+    jobs_status = {}
+    for chunk_wd,job in jobs.items():
+        jobs_status[chunk_wd] = job.get()
+    
+    print('\tProcessing done!')
+    ##/
+    ###/
+    
+    ### Fetch output of chunks (prepare for stage 2)
+    print('Fetching genomes from stage 1')
+    # Save representative genomes and intermediary data from stage 1
+    failed_jobs = []
+    genomes_stage1 = []
+    Chdb_genome_entries = {} # for intermediary file (Chdb)
+    Chdb_header = 'header_placeholder\n' # will be re-assigned upon file reading
+    nf = open(workdir+'/'+'derep_chunks_representative_genomes.tsv','w')
+    for chunk,chunk_output_path in jobs_status.items():
+        # Check if this chunk did not execute properly
+        if chunk_output_path == False:
+            print('Job '+chunk+' failed with error!')
+            failed_jobs.append(chunk)
+            continue
+        #/
+        # write representative genomes
+        for file_ in os.listdir(chunk_output_path+'/'+'genomes_derep_representants'):
+            genomes_stage1.append(file_)
+            
+            writeArr = [file_,chunk]
+            nf.write('\t'.join(map(str,writeArr))+'\n')
+        #/
+        # Fetch intermediary data that we will save to outer
+        if not skip_intermediary:
+            if os.path.exists(chunk_output_path+'/'+'drep_workdir'+'/'+'data_tables'+'/'+'Chdb.csv'):
+                with open(chunk_output_path+'/'+'drep_workdir'+'/'+'data_tables'+'/'+'Chdb.csv','r') as f:
+                    for ln,line_raw in enumerate(f):
+                        # parse header
+                        if ln == 0:
+                            Chdb_header = line_raw
+                            continue
+                        #/
+                        # parse row
+                        line = line_raw # keep raw line for instant write
+                        line = line.strip('\n')
+                        line = line.split(',')
+                        
+                        genome = line[0]
+                        Chdb_genome_entries[genome] = line_raw
+                        #/
+        #/
+    nf.close()
     #/
-    # Fetch dereplicated genomes from chunk
-    for file_ in os.listdir(chunk_output_path+'/'+'genomes_derep_representants'):
-        genomes_stage1.append(file_)
-        shutil.copy2(chunk_output_path+'/'+'genomes_derep_representants'+'/'+file_,inter_chunks_wd_genomes_path)
-    #/
-    # Fetch intermediary data that we will save to outer
+    # Save Chdb intermediary file
     if not skip_intermediary:
-        if os.path.exists(chunk_output_path+'/'+'drep_workdir'+'/'+'data_tables'+'/'+'Chdb.csv'):
-            with open(chunk_output_path+'/'+'drep_workdir'+'/'+'data_tables'+'/'+'Chdb.csv','r') as f:
-                for ln,line_raw in enumerate(f):
-                    # parse header
-                    if ln == 0:
-                        Chdb_header = line_raw
-                        continue
-                    #/
-                    # parse row
-                    line = line_raw # keep raw line for instant write
-                    line = line.strip('\n')
-                    line = line.split(',')
-                    
-                    genome = line[0]
-                    Chdb_genome_entries[genome] = line_raw
-                    #/
+        if not os.path.exists(intermediary_files_dir):      os.makedirs(intermediary_files_dir)
+        with open(intermediary_files_dir+'/'+'Chdb.csv','w') as nf:
+            nf.write(Chdb_header)
+            for genome,row in Chdb_genome_entries.items():
+                nf.write(row)
+    #/
+    # check if jobs failed
+    if failed_jobs:
+        print('Could not run dRep properly. Terminating.')
+        sys.exit()
+    #/
+    # print some info
+    print('Number of genomes remaining after first round of dRep on chunks: '+str(len(genomes_stage1))+'/'+str(sum(map(len,downloaded_genomes_chunked))))
     #/
 #/
-# Save Chdb intermediary file
-if not skip_intermediary:
-    if not os.path.exists(intermediary_files_dir):      os.makedirs(intermediary_files_dir)
-    with open(intermediary_files_dir+'/'+'Chdb.csv','w') as nf:
-        nf.write(Chdb_header)
-        for genome,row in Chdb_genome_entries.items():
-            nf.write(row)
-#/
-if failed_jobs:
-    print('Could not run dRep properly. Terminating.')
-    sys.exit()
 ###/
 
 ### Run drep on chunks-output (stage 2, dereplication inter-chunk)
 drep_secondary_run = False
 ## Check if we had multiple chunks from stage 1 (then copy results to final folder)
-if len(jobs_status) == 1:
+if not drep_secondary_run_only and len(jobs_status) == 1:
     print('All datasets was processed in the same batch, will not do a second round of dRep')
     chunk_output_path = list(jobs_status.items())[0][1]
     shutil.copytree(chunk_output_path+'/'+'genomes_derep_representants',inter_chunks_wd+'/'+'genomes_derep_representants',dirs_exist_ok=True)
 ##/
 ## Else, run drep again
 else:
-    print('Number of genomes remaining after first round of dRep on chunks: '+str(len(genomes_stage1))+'/'+str(sum(map(len,downloaded_genomes_chunked))))
     drep_secondary_run = True
     # Check if we prompt to continue before proceeding to 2nd round of dRep
     if prompt_before_step2:
@@ -320,11 +335,30 @@ else:
         if usr_inp.lower() in ('n','no'):
             sys.exit('User input: '+usr_inp+', terminating software')
     #/
+    # init genomes directory in inter-chunks (stage 2)
+    inter_chunks_wd_genomes_path = inter_chunks_wd + '/' + 'genomes'
+    if not os.path.exists(inter_chunks_wd_genomes_path):        os.makedirs(inter_chunks_wd_genomes_path)
+    #/
+    ## Setup folders and genomes
+    # Pre: check if we run only stage2, then import some data from stage1
+    if drep_secondary_run_only:
+        genomes_stage1 = []
+        with open(workdir+'/'+'derep_chunks_representative_genomes.tsv','r') as f:
+            for line in f:
+                line = line.strip('\n')
+                genome,chunk = line.split('\t')
+                genomes_stage1.append(genome)
+    #/
+    # Copy-in genomes from stage1 to stage2
+    for genome in genomes_stage1:
+        shutil.copy2(workdir+'/'+'genomes'+'/'+genome,inter_chunks_wd_genomes_path)
+    #/
+    ##/
     ## Setup intermediate data
     if not skip_intermediary:
-        # init "drep_workdir" folder and "data_tables" folder
+        # init "drep_workdir" folder, and "data_tables" folder
         step2_drep_wd = inter_chunks_wd+'/'+'drep_workdir'
-        step2_drep_data_tables = inter_chunks_wd+'/'+'drep_workdir'+'/'+'data_tables'
+        step2_drep_data_tables = step2_drep_wd+'/'+'data_tables'
         if not os.path.exists(step2_drep_wd):                        os.makedirs(step2_drep_wd)
         if not os.path.exists(step2_drep_data_tables):      os.makedirs(step2_drep_data_tables)
         #/
@@ -376,22 +410,23 @@ print('Number of genomes remaining as representative genomes: '+str(len(os.listd
 
 ### Summarize compiled sequences
 ## Stage 1 (contained sequences during dRep of chunks)
-with open(workdir+'/'+'derep_chunks_clustered_genomes.tsv','w') as nf:
-    if 0 and 'write header?':
-        writeArr = ['representant','dereplicated'] # write header
-        if drep_secondary_run:  writeArr.append('chunk')    # append column if we ran dRep in two stages. Stage 1 shall include a column saying which chunk it was processed in.
-        nf.write('\t'.join(writeArr)+'\n')
-        
-    for chunk,chunk_output_path in jobs_status.items():
-        if chunk_output_path != False:
-            # Get genome representative<->contained relation
-            with open(chunk_output_path+'/'+'derep_clustered_genomes.tsv','r') as f:
-                for line in f:
-                    line = line.strip('\n')
-                    writeArr = line.split('\t')
-                    if drep_secondary_run:  writeArr.append(chunk) # if we ran dRep in two stages, write representant + chunk from file, and add info about which chunk this relation was processed from
-                    nf.write('\t'.join(writeArr)+'\n')
-            #/
+if not drep_secondary_run_only:
+    with open(workdir+'/'+'derep_chunks_clustered_genomes.tsv','w') as nf:
+        if 0 and 'write header?':
+            writeArr = ['representant','dereplicated'] # write header
+            if drep_secondary_run:  writeArr.append('chunk')    # append column if we ran dRep in two stages. Stage 1 shall include a column saying which chunk it was processed in.
+            nf.write('\t'.join(writeArr)+'\n')
+            
+        for chunk,chunk_output_path in jobs_status.items():
+            if chunk_output_path != False:
+                # Get genome representative<->contained relation
+                with open(chunk_output_path+'/'+'derep_clustered_genomes.tsv','r') as f:
+                    for line in f:
+                        line = line.strip('\n')
+                        writeArr = line.split('\t')
+                        if drep_secondary_run:  writeArr.append(chunk) # if we ran dRep in two stages, write representant + chunk from file, and add info about which chunk this relation was processed from
+                        nf.write('\t'.join(writeArr)+'\n')
+                #/
 ##/
 ## Stage 2 (contained sequences during dRep of stage1 output)
 # Check if stage2 was not run (all datasets were run as one process in stage1)
@@ -411,19 +446,33 @@ else:
 ## Get genomes
 genomes_all = list(os.listdir(workdir+'/'+'genomes'))
 ##/
-## 1. Get genome status from chunked workers (from intra_chunks wd, "stage 1")
+
+## Get genome stage1/stage2 statuses
 genome_statuses_stage1 = {}
-for chunk,chunk_output_path in jobs_status.items():
-    if chunk_output_path != False:
-        with open(chunk_output_path+'/'+'derep_genome_status.tsv','r') as f:
-            for line in f:
-                line = line.strip('\n')
-                genome,status = line.split('\t')
-                
-                genome_statuses_stage1[genome] = status
-##/
-## 2. Get genome status from inter_chunks wd "stage 2". Overwrite new information; since representative genomes from stage1 might be contained in stage2.
 genome_statuses_stage2 = {}
+# If we run secondary step only, then import old data
+if drep_secondary_run_only:
+    with open(workdir+'/'+'derep_genomes_status.tsv','r') as f:
+        for line in f:
+            line = line.strip('\n')
+            genome,repgenome,stage1_status,stage2_status= line.split('\t')
+            if stage1_status != 'NA':
+                genome_statuses_stage1[genome] = stage1_status
+            if stage2_status != 'NA':
+                genome_statuses_stage1[genome] = stage1_status
+#/
+# 1. Get genome status from chunked workers (from intra_chunks wd, "stage 1"), skip this if we do stage 2 only
+if not drep_secondary_run_only:
+    for chunk,chunk_output_path in jobs_status.items():
+        if chunk_output_path != False:
+            with open(chunk_output_path+'/'+'derep_genome_status.tsv','r') as f:
+                for line in f:
+                    line = line.strip('\n')
+                    genome,status = line.split('\t')
+                    
+                    genome_statuses_stage1[genome] = status
+#/
+# 2. Get genome status from inter_chunks wd "stage 2". Overwrite new information; since representative genomes from stage1 might be contained in stage2.
 if drep_secondary_run:
     with open(inter_chunks_wd+'/'+'derep_genome_status.tsv','r') as f:
         for line in f:
@@ -431,10 +480,11 @@ if drep_secondary_run:
             genome,status = line.split('\t')
             
             genome_statuses_stage2[genome] = status
+#/
 ##/
-## Mark which genomes were final representants
+# Mark which genomes were final representants
 genomes_representants = list(os.listdir(workdir+'/'+'genomes_derep_representants'))
-##/
+#/
 ## Write summary file (columns: file_name, representative (bool), QC status, ?
 with open(workdir+'/'+'derep_genomes_status.tsv','w') as nf:
     # Header:
@@ -472,19 +522,39 @@ if not keep_files:
 ###/
 
 ### Write parameters used
-with open(workdir+'/'+'derep_parameters.txt','w') as nf:
-    nf.write('primary_ani'+'\t'+str(primary_ani)+'\n')
-    nf.write('secondary_ani'+'\t'+str(secondary_ani)+'\n')
-    nf.write('input_data_processed_in_two_stages'+'\t'+str(drep_secondary_run)+'\n')
-    nf.write('number_of_dataset_splits'+'\t'+str(num_processes)+'\n')
-    nf.write('datasets per split'+'\t'+str(process_size)+'\n')
-    nf.write('pre_primary_ani'+'\t'+str(pre_primary_ani)+'\n')
-    nf.write('pre_secondary_ani'+'\t'+str(pre_secondary_ani)+'\n')
-    nf.write('S_algorithm'+'\t'+str(S_algorithm)+'\n')
+if not drep_secondary_run_only:
+    with open(workdir+'/'+'derep_parameters.txt','w') as nf:
+        nf.write('primary_ani'+'\t'+str(primary_ani)+'\n')
+        nf.write('secondary_ani'+'\t'+str(secondary_ani)+'\n')
+        nf.write('input_data_processed_in_two_stages'+'\t'+str(drep_secondary_run)+'\n')
+        nf.write('number_of_dataset_splits'+'\t'+str(num_processes)+'\n')
+        nf.write('datasets per split'+'\t'+str(process_size)+'\n')
+        nf.write('pre_primary_ani'+'\t'+str(pre_primary_ani)+'\n')
+        nf.write('pre_secondary_ani'+'\t'+str(pre_secondary_ani)+'\n')
+        nf.write('S_algorithm'+'\t'+str(S_algorithm)+'\n')
+else:
+    # get old file
+    old_lines = []
+    with open(workdir+'/'+'derep_parameters.txt','r') as f:
+        for line in f:
+            if line.strip('\n') == '': break #check if empty line, means separator between stage1+stage2 run and stage2_only run
+            old_lines.append(line)
+    #/
+    # write old file plus stage2_only
+    with open(workdir+'/'+'derep_parameters.txt','w') as nf:
+        nf.write(''.join(old_lines))
+        
+        nf.write('\n')
+        nf.write('Secondary_only_parameters:\t\n')
+        nf.write('primary_ani'+'\t'+str(primary_ani)+'\n')
+        nf.write('secondary_ani'+'\t'+str(secondary_ani)+'\n')
+        nf.write('S_algorithm'+'\t'+str(S_algorithm)+'\n')
+    #/
 ###/
 
 ### Summarize contained/dereplicated-and-removed genomes.
-### NOTE: I do this in a function so that previous uses of repgenr can summarize their derep results by [python -c "from derep import summarize_derep_genomes; workdir=<workdir path used when running repgenr>; summarize_derep_genomes()"]
+# NOTE: I do this in a function so that previous uses of repgenr can summarize their derep results by [python -c "from derep import summarize_derep_genomes; workdir=<workdir path used when running repgenr>; summarize_derep_genomes()"]
+# It can be moved into this script-file when previous use of repgenr has been barred
 from derep_summarize import summarize_derep_genomes
 summarize_derep_genomes(workdir)
 ###/
