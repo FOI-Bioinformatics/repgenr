@@ -66,7 +66,7 @@ if not os.path.exists(workdir):
     sys.exit()
     
 if drep_secondary_run_only and not os.path.exists(workdir+'/'+'derep_chunks_representative_genomes.tsv'):
-    print('A secondary-only run was specified, but could not locate previous output files of stage 1!')
+    print('A secondary-only run was specified, but could not locate previous output files of stage 1! If you ran derep before, this may indicate that your dataset was processed as one batch in the first step - this makes the secondary step unnecessary')
     sys.exit()
 #/
 ###/
@@ -319,12 +319,22 @@ if not drep_secondary_run_only:
 ###/
 
 ### Run drep on chunks-output (stage 2, dereplication inter-chunk)
+# Remove previous directory of genome representants
+if os.path.exists(workdir+'/'+'genomes_derep_representants'):
+    print('Previous directory of dereplicated genomes was erased')
+    shutil.rmtree(workdir+'/'+'genomes_derep_representants')
+#/
+
 drep_secondary_run = False
 ## Check if we had multiple chunks from stage 1 (then copy results to final folder)
 if not drep_secondary_run_only and len(jobs_status) == 1:
     print('All datasets was processed in the same batch, will not do a second round of dRep')
     chunk_output_path = list(jobs_status.items())[0][1]
-    shutil.copytree(chunk_output_path+'/'+'genomes_derep_representants',inter_chunks_wd+'/'+'genomes_derep_representants',dirs_exist_ok=True)
+    shutil.copytree(chunk_output_path+'/'+'genomes_derep_representants',inter_chunks_wd+'/'+'genomes_derep_representants')
+    
+    # remove the list of representative genomes (will re-create it from files in workdir/genomes_derep_representants)
+    if os.path.exists(workdir+'/'+'derep_chunks_representative_genomes.tsv'):        os.remove(workdir+'/'+'derep_chunks_representative_genomes.tsv')
+    #/
 ##/
 ## Else, run drep again
 else:
@@ -402,7 +412,13 @@ else:
 
 ### Fetch final dereplication output and tranfer to master-folder (main workingdirectory)
 print('Finalizing dereplication')
-shutil.copytree(inter_chunks_wd+'/'+'genomes_derep_representants',workdir+'/'+'genomes_derep_representants',dirs_exist_ok=True)
+shutil.copytree(inter_chunks_wd+'/'+'genomes_derep_representants',workdir+'/'+'genomes_derep_representants')
+
+# Write representative genomes
+with open(workdir+'/'+'derep_representative_genomes.tsv','w') as nf:
+    for file_ in os.listdir(workdir+'/'+'genomes_derep_representants'):
+        nf.write(file_+'\n')
+#/
 ###/
 ### Print number of genomes in dereplication-folder
 print('Number of genomes remaining as representative genomes: '+str(len(os.listdir(workdir+'/'+'genomes_derep_representants')))+'/'+str(sum(map(len,downloaded_genomes_chunked))))
@@ -412,11 +428,6 @@ print('Number of genomes remaining as representative genomes: '+str(len(os.listd
 ## Stage 1 (contained sequences during dRep of chunks)
 if not drep_secondary_run_only:
     with open(workdir+'/'+'derep_chunks_clustered_genomes.tsv','w') as nf:
-        if 0 and 'write header?':
-            writeArr = ['representant','dereplicated'] # write header
-            if drep_secondary_run:  writeArr.append('chunk')    # append column if we ran dRep in two stages. Stage 1 shall include a column saying which chunk it was processed in.
-            nf.write('\t'.join(writeArr)+'\n')
-            
         for chunk,chunk_output_path in jobs_status.items():
             if chunk_output_path != False:
                 # Get genome representative<->contained relation
