@@ -77,14 +77,6 @@ if run_mode == 'accurate':
     #/
     ###/
     
-    ### 
-    ## Run Progressivemauve (pairwise)
-    # find genomes -name "*.fasta" -exec basename {} \; | xargs -P 40 -I {} sh -c 'progressiveMauve --output progressivemauve/{}.xmfa outgroup/Rhizobiaceae_Ochrobactrum_B_teleogrylli_GCF_006376685.1.fasta genomes/{}'
-    ## Run x2fa (xmfa to fa)
-    # find progressivemauve/ -name "*.xmfa" -exec basename {} \; | xargs -I {} sh -c '../x2fa.py progressivemauve/{} outgroup/Rhizobiaceae_Ochrobactrum_B_teleogrylli_GCF_006376685.1.fasta 0 progressivemauve/{}.fa'
-    ## Merge fa to multi-fa
-    # parse .fa files and extract alignment for "rname" (first file only) and then "qname"
-    
     ### Run progressivemauve and convert to fasta
     pmauve_ref = None
     pmauve_genome_list = []
@@ -151,7 +143,9 @@ if run_mode == 'accurate':
         
         # Run x2fa
         print('\nExecuting x2fa.py')
-        pmauve_cmd = ['python2','x2fa.py',query_xmfa_out,reference_path,0,query_fa_out]
+        phylo_file_loc = os.path.abspath(__file__)
+        x2fa_file_loc = os.path.dirname(phylo_file_loc) + '/' + 'x2fa.py'
+        pmauve_cmd = ['python2',x2fa_file_loc,query_xmfa_out,reference_path,0,query_fa_out]
         subprocess.call(' '.join(map(str,pmauve_cmd)),shell=True)
         #/
         
