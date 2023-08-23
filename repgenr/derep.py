@@ -524,6 +524,84 @@ with open(workdir+'/'+'derep_genomes_status.tsv','w') as nf:
         nf.write('\t'.join(map(str,writeArr))+'\n')
         #/
 ##/
+## Get genome quality data from dRep "genomeInformation.csv" files (genomes are removed by default in dRep if <75% ocmpleteness, >25% contamination, etc.)
+# Parse data from work-folders
+genomeInformation_header = None
+genomeInformation = {} # genome name -> raw_row
+for path,dirs,files in os.walk(chunks_workdir):
+    for file_ in files:
+        if file_ == 'genomeInformation.csv' and os.path.basename(path) == 'data_tables':
+            with open(path+'/'+file_,'r') as f:
+                for enum,line in enumerate(f):
+                    line = line.strip('\n')
+                    line = line.split(',')
+                    # check if header-row, save it if we did not already
+                    if enum == 0:
+                        if genomeInformation_header == None:
+                            genomeInformation_header = line
+                        continue
+                    #/
+                    # Save rows
+                    genome = line[0]
+                    genomeInformation[genome] = line
+                    #/
+#/
+# Check if there was a previous file, then parse data from it
+if os.path.exists(workdir+'/'+'derep_genomeInformation.tsv'):
+    with open(workdir+'/'+'derep_genomeInformation.tsv','r') as f:
+        for enum,line in enumerate(f):
+            line = line.strip('\n')
+            line = line.split(',')
+            # check if header-row, save it if we did not already
+            if enum == 0:
+                if genomeInformation_header == None:
+                    genomeInformation_header = line
+                continue
+            #/
+            # Save rows
+            genome = line[0]
+            genomeInformation[genome] = line
+            #/
+#/
+# Dump file
+with open(workdir+'/'+'derep_genomeInformation.tsv','w') as nf:
+    rows_written = 0
+    nf.write(','.join(genomeInformation_header)+'\n')
+    for genome,row in genomeInformation.items():
+        if not genome in genomes_all:
+            print('Warning: genome had information stored, but was not located in "genomes"-folder. This indicates that this workdir has been re-run with new genomes. To be safe, previous derep-files should be removed if genome selection has changed.')
+            continue
+        nf.write(','.join(row)+'\n')
+        rows_written += 1
+#/
+##/
+## Output information of discarded files (using default genome filtering options described at "https://drep.readthedocs.io/en/latest/module_descriptions.html?highlight=GENOME%20FILTERING%20OPTION#dereplicate")
+# dRep dereplicate:
+# GENOME FILTERING OPTIONS:
+#  -l LENGTH, --length LENGTH
+#                        Minimum genome length (default: 50000)
+#  -comp COMPLETENESS, --completeness COMPLETENESS
+#                        Minumum genome completeness (default: 75)
+#  -con CONTAMINATION, --contamination CONTAMINATION
+#                        Maximum genome contamination (default: 25)
+with open(workdir+'/'+'derep_potentially_discarded_genomes.tsv','w') as nf:
+    for genome,row in genomeInformation.items():
+        genome,completeness,contamination,strain_heterogeneity,length,N50,centrality = row
+        try:        length = int(length)
+        except:     length = 9999999999
+        try:        completeness = float(completeness)
+        except:     completeness = 999
+        try:        contamination = float(contamination)
+        except:     contamination = 999
+        
+        qc_fails = []
+        if length < 5000:               qc_fails.append('fail_length')
+        if completeness < 75:           qc_fails.append('fail_qc')
+        if contamination > 25:          qc_fails.append('fail_contamination')
+        
+        if qc_fails:
+            nf.write(genome+'\t'+','.join(qc_fails)+'\n')
+##/
 ###/
 
 ### Clean up workspace
