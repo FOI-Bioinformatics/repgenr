@@ -78,13 +78,37 @@ def summarize_derep_genomes(workdir):
             nf.write('\t'.join(map(str,writeArr))+'\n')
         #/
     #/
+    # Write output2
+    with open(workdir+'/'+'derep_genomes_summary2.tsv','w') as nf:
+        # write header
+        header = ['representative','contained','is_self']
+        nf.write('\t'.join(map(str,header))+'\n')
+        #/
+        # write rows
+        for rep,childs in dereps_summarized.items():
+            # Write child<->rep where childs exist
+            if childs:
+                for child in childs:
+                    child_is_rep = False
+                    writeArr = [rep,child,child_is_rep]
+                    nf.write('\t'.join(map(str,writeArr))+'\n')
+            #/
+            # If no childs exist, then write rep as its own child (carro spec.)
+            else:
+                child_is_rep = True
+                writeArr = [rep,rep,child_is_rep]
+                nf.write('\t'.join(map(str,writeArr))+'\n')
+            #/
+        #/
+        
+    #/
     # Finalize
     print('Dereplication summary written to "derep_genomes_summary.tsv"')
     #/
 
 ####/
 
-### Execute code o this script if it was called stand-alone
+### Execute code of this script if it was called stand-alone
 if __name__ == "__main__":
     # setup
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
