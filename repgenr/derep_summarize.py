@@ -93,14 +93,12 @@ def summarize_derep_genomes(workdir):
                     writeArr = [rep,child,child_is_rep]
                     nf.write('\t'.join(map(str,writeArr))+'\n')
             #/
-            # If no childs exist, then write rep as its own child (carro spec.)
-            else:
-                child_is_rep = True
-                writeArr = [rep,rep,child_is_rep]
-                nf.write('\t'.join(map(str,writeArr))+'\n')
+            # Write rep as its own child (carro spec.)
+            child_is_rep = True
+            writeArr = [rep,rep,child_is_rep]
+            nf.write('\t'.join(map(str,writeArr))+'\n')
             #/
         #/
-        
     #/
     # Finalize
     print('Dereplication summary written to "derep_genomes_summary.tsv"')
