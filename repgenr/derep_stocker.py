@@ -54,7 +54,7 @@ stored_runs_path = workdir+'/'+'derep_stocker'
 ###/
 
 ### Define expected derep files
-expected_derep_files = ['derep_parameters.txt','derep_clustered_genomes.tsv','derep_genomes_status.tsv','genomes_derep_representants']
+expected_derep_files = ['derep_parameters.txt','derep_clustered_genomes.tsv','derep_genomes_status.tsv','derep_genomes_summary.tsv','derep_genomes_summary2.tsv','genomes_derep_representants']
 ###/
 
 ### Check if user want to list runs
