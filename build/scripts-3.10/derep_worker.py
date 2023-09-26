@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!python
 
 ### IDE: this script used to be the "derep.py". The new "derep.py" is a wrapper around this script that enable chunking of large datasets.
 

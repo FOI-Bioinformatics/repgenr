@@ -1,16 +1,10 @@
-#!/usr/bin/env python3
-
-"""
-Software name: FlexGenR (Flexible Genome Repositories)
-Software name: RepGenR (Representative-Genome Repositories)
-"""
+#!python
 
 import sys
 import os
 import subprocess
 import argparse
 import time
-
 
 
 submodules_available = ('metadata','genome','glance','derep','derep_stocker','phylo','tree2tax',)
@@ -66,10 +60,15 @@ for arg_enum,_ in enumerate(submodule_args):
     value = submodule_args[arg_enum]
     
     if argument in ('--workdir','-wd',):
-        workdir = value
-        break # stop on first
+        if os.path.exists(value):
+            workdir = value
+            break # stop on first
 
-log_cmd_extension = ['2>&1 | tee -a '+workdir+'/'+'repgenr.log']
+if workdir:
+    log_cmd_extension = ['2>&1 | tee -a '+workdir+'/'+'repgenr.log']
+else:
+    log_cmd_extension = []
+    
 cmd += log_cmd_extension
 #/
 # Run the subprocess with the constructed command
@@ -93,3 +92,7 @@ cmd_runtime += log_cmd_extension
 subprocess.call(' '.join(cmd_runtime),shell=True)
 #/
 ##/
+# add dummy function for setup.py entry-point
+def main():
+    pass
+#/
