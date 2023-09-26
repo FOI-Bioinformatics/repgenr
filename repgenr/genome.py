@@ -9,7 +9,6 @@ import ast
 import shutil
 import subprocess
 
-workdir = 'output_test'
 
 ### Parse input arguments
 # setup

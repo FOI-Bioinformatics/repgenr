@@ -8,7 +8,6 @@ import ete3
 import ast
 import hashlib
 
-workdir = 'output_test'
 ### Parse input arguments
 # setup
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -19,7 +18,6 @@ parser.add_argument('--remove_outgroup',help='If specified, will remove the outg
 parser.add_argument('--all_genomes',action='store_true',help='If specified, will run on all genomes and not on de-replicated genomes')
 #/
 # parse input
-#args = parser.parse_args(['-wd','tularensis_realtry1','--remove_outgroup','--root_name','Francisella tularensis','--node_basename','node_'])
 args = parser.parse_args()
 workdir = args.workdir
 node_basename = args.node_basename

@@ -31,8 +31,6 @@ parser.add_argument('--limit',type=int,default=None,help='Limits the analysis to
 #/
 # parse input
 args = parser.parse_args()
-#args = parser.parse_args(['--nodownload','-r', '207.0', '-v', 'bac120', '-d', 'all', '-l', 'genus', '-tg', 'francisella', '-ts', 'tularensis', '-wd', 'tularensis_WIP'])
-#args = parser.parse_args('-r 207.0 -v bac120 -d rep -l family -tf Francisellaceae -wd delme_test/repgenr_family_rep_2 --metadata_path tularensis3/bac120_metadata_r207.tar.gz --outgroup_accession GCA_000297215.2'.split())
 
 gtdb_release = args.release
 gtdb_version = args.version

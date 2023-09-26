@@ -8,22 +8,12 @@ import subprocess
 from multiprocessing import Pool
 
 
-"""
-Example of chunking:
-    Suppose there are 5000 genomes to dereplicate. Dereplicating them in one process takes too long time. Therefore, we chunk the work up into 10 manageable batches.
-    command: rengenr derep --process_size 500 --num_processes 10 --threads 50
-    The command will divide the 5000 genomes into batches of 500 genomes each. It will run them all in parallel (as 10 different processes) at 50 threads total, 5 threads per process.
-    If we want to make it less parallel, we lower the number of procsses
-    command: rengenr derep --process_size 500 --num_processes 2 --threads 50
-    Now it will run them 2 processses in parallel at 50 threads total, 25 threads per process.
-"""
-
 ### Parse input arguments
 # setup
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory, created by metadata and genome commands')
-parser.add_argument('-sani','--secondary_ani',default=0.99,help='Average nucleotide identity (ANI) threshold for clustering in sensitive step of dRep (secondary clustering)')
-parser.add_argument('-pani','--primary_ani',default=0.90,help='Average nucleotide identity (ANI) threshold for clustering in rough step of dRep (primary clustering)')
+parser.add_argument('-sani','--secondary_ani',default=0.99,help='Average nucleotide identity (ANI) threshold for clustering in sensitive step of dRep (secondary clustering) (default: 0.99)')
+parser.add_argument('-pani','--primary_ani',default=0.90,help='Average nucleotide identity (ANI) threshold for clustering in rough step of dRep (primary clustering) (default: 0.9)')
 parser.add_argument('--pre_secondary_ani',default=None,help='On dataset chunks, ANI threshold for clustering in first stage of dRep. Only applied if -s/--process_size is >1 (default: same as -sani)')
 parser.add_argument('--pre_primary_ani',default=None,help='On dataset chunks, ANI threshold for clustering in second stage of dRep. Only applied if -s/--process_size is >1 (default: same as -pani)')
 parser.add_argument('--S_algorithm',default='fastANI',help='Algorithm to use in dRep fastANI. Possible values as of dRep v3.4.1: fastANI,gANI,goANI,ANIn,ANImf (default: fastANI)')
@@ -568,7 +558,7 @@ with open(workdir+'/'+'derep_genomeInformation.tsv','w') as nf:
     rows_written = 0
     nf.write(','.join(genomeInformation_header)+'\n')
     for genome,row in genomeInformation.items():
-        if not genome in genomes_all:
+        if 0 and not genome in genomes_all:
             print('Warning: genome had information stored, but was not located in "genomes"-folder. This indicates that this workdir has been re-run with new genomes. To be safe, previous derep-files should be removed if genome selection has changed.')
             continue
         nf.write(','.join(row)+'\n')

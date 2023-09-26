@@ -15,6 +15,7 @@ parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('-m','--mode',required=True,choices=('accurate','fast',),help='Strategy to use for tree generation (accurate: pairwise progressivemauve+iqtree, fast: mashtree)')
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory, created by metadata-command')
 parser.add_argument('-t','--threads',type=int,default=16,help='Number of total threads to use (default: 16)')
+parser.add_argument('-B','--bootstrap',type=int,default=0,help='Number of bootstrap iterations. Only applicable to "--mode accurate". Passes value to IQ-TREE "ultrafast bootstrap" (iqtree -B parameter). Minimum value 1000. (default: 0)')
 parser.add_argument('--no_outgroup',action='store_true',help='If specified, will not include the outgroup organism into the tree calculation')
 parser.add_argument('--all_genomes',action='store_true',help='If specified, will run on all genomes and not on de-replicated genomes')
 parser.add_argument('--keep_files',action='store_true',help='If specified, will save intermediary files (accurate-mode only)')
@@ -24,13 +25,16 @@ args = parser.parse_args()
 num_threads = args.threads
 run_mode = args.mode
 
+bootstrap_num_iterations = args.bootstrap
+
 workdir = args.workdir
 skip_outgroup = args.no_outgroup
 run_on_all_genomes = args.all_genomes
 
 keep_files = args.keep_files
 #/
-# validate input
+## validate input
+# check dirs
 if not os.path.exists(workdir):
     print('Could not locate working directory (created by metadata-command). Please check the input:')
     print(workdir)
@@ -44,6 +48,12 @@ if not run_on_all_genomes and not os.path.exists(workdir+'/'+'genomes_derep_repr
     print('Please check the input working directory and confirm that you have run the derep-command')
     sys.exit()
 #/
+# check bootstrap input
+if bootstrap_num_iterations > 0 and bootstrap_num_iterations < 1000:
+    print('Bootstrap value must be at least 1000. For more details, see IQ-TREE documentation, section \n\tULTRAFAST BOOTSTRAP/JACKKNIFE: -B \t Replicates for ultrafast bootstrap')
+    sys.exit()
+#/
+##/
 ###/
 
 ### Get absolute path for workdir, needed for software calls
@@ -108,6 +118,12 @@ if run_mode == 'accurate':
         # Add outgroup to genome-list
         pmauve_genome_list.append(workdir+'/'+'outgroup'+'/'+outgroup_file)
         #/
+    #/
+    # Check if number of genomes is below 3, then abort (IQTREE requires at least 3 genomes)
+    if len(pmauve_genome_list) < 3:
+        print('Unable to generate accurate 3: number of input sequences too low. At least 3 genomes (outgroup included, if applicable) are needed to run IQ-TREE')
+        print('Current execution has: '+str(len(pmauve_genome_list))+ ' genomes.')
+        sys.exit()
     #/
     # soft-link genomes
     print('Soft-linking genomes...')
@@ -223,6 +239,10 @@ if run_mode == 'accurate':
     # check if using outgroup
     if not skip_outgroup:
         cmd_iqtree += ['-o',outgroup_file.replace('.fasta','')]
+    #/
+    # check if using bootstrap
+    if bootstrap_num_iterations > 0:
+        cmd_iqtree += ['-B',bootstrap_num_iterations]
     #/
     subprocess.call(' '.join(map(str,cmd_iqtree)),shell=True)
     ###/

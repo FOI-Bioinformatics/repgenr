@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 
-### IDE: this script was before "derep.py". The new "derep.py" is a wrapper around this script that enable chunking of large datasets.
+### IDE: this script used to be the "derep.py". The new "derep.py" is a wrapper around this script that enable chunking of large datasets.
 
 import argparse
 import os
 import sys
 import subprocess
 
-workdir = 'output_test'
-num_threads = 40
 
 ### Parse input arguments
 # setup
@@ -99,7 +97,7 @@ with open(workdir+'/'+'drep_workdir/data_tables/Cdb.csv','r') as f:
             genomes_status[genome] = 'contained'
         #/
 ##/
-## Get genomes that was not involved in dereplication (i.e., failed checkM or similar)
+## Get genomes that was not involved in dereplication (i.e., failed checkM or similar) NOTE: these genomes can still be representatives if no better genome existed
 with open(workdir+'/'+'drep_workdir/data_tables/genomeInformation.csv','r') as f:
     for enum,line in enumerate(f):
         # Expected columns:
