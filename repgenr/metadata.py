@@ -95,7 +95,7 @@ if target_species:          target_species = target_species.lower()
 ###/
 
 ### Download gtdb database
-print('Downloading metadata-file from GTDB...')
+print('Downloading metadata-file from GTDB...',flush=True)
 if not os.path.exists(workdir):     os.makedirs(workdir)
 
 metadata_target = 'https://data.gtdb.ecogenomic.org/releases/release'+str(int(gtdb_release))+'/'+str(gtdb_release)+'/'+gtdb_version+'_metadata_r'+str(int(gtdb_release))+'.tar.gz'

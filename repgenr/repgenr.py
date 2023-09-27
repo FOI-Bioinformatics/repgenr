@@ -60,16 +60,21 @@ for arg_enum,_ in enumerate(submodule_args):
     value = submodule_args[arg_enum]
     
     if argument in ('--workdir','-wd',):
-        if os.path.exists(value):
+        if submodule == 'metadata' or os.path.exists(value): # dont mess upp logging if a non-existant directory is passed. If the subcommand is "metadata", first subcommand to call, there will be no directory for -wd.
             workdir = value
             break # stop on first
 
+log_cmd_extension = []
 if workdir:
+    if submodule == 'metadata' and not os.path.exists(workdir):     os.makedirs(workdir) # if subcommand is metadata, then make the directory for log
     log_cmd_extension = ['2>&1 | tee -a '+workdir+'/'+'repgenr.log']
-else:
-    log_cmd_extension = []
-    
+
 cmd += log_cmd_extension
+#/
+# Write command passed to log
+if log_cmd_extension:
+    with open(workdir+'/'+'repgenr.log','a') as fo:
+        fo.write(' '.join(cmd)+'\n')
 #/
 # Run the subprocess with the constructed command
 cmd_timestamp_start = ['printf "[INFO][TIMESTAMP][START] %s\n" "$(date)"']
