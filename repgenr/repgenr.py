@@ -60,12 +60,13 @@ for arg_enum,_ in enumerate(submodule_args):
     value = submodule_args[arg_enum]
     
     if argument in ('--workdir','-wd',):
-        workdir = value
-        break # stop on first
+        if submodule == 'metadata' or os.path.exists(value): # dont mess upp logging if a non-existant directory is passed. If the subcommand is "metadata", first subcommand to call, there will be no directory for -wd.
+            workdir = value
+            break # stop on first
 
 log_cmd_extension = []
 if workdir:
-    if not os.path.exists(workdir):     os.makedirs(workdir)
+    if submodule == 'metadata' and not os.path.exists(workdir):     os.makedirs(workdir) # if subcommand is metadata, then make the directory for log
     log_cmd_extension = ['2>&1 | tee -a '+workdir+'/'+'repgenr.log']
 
 cmd += log_cmd_extension
