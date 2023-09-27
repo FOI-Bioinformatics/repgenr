@@ -60,16 +60,20 @@ for arg_enum,_ in enumerate(submodule_args):
     value = submodule_args[arg_enum]
     
     if argument in ('--workdir','-wd',):
-        if os.path.exists(value):
-            workdir = value
-            break # stop on first
+        workdir = value
+        break # stop on first
 
+log_cmd_extension = []
 if workdir:
+    if not os.path.exists(workdir):     os.makedirs(workdir)
     log_cmd_extension = ['2>&1 | tee -a '+workdir+'/'+'repgenr.log']
-else:
-    log_cmd_extension = []
-    
+
 cmd += log_cmd_extension
+#/
+# Write command passed to log
+if log_cmd_extension:
+    with open(workdir+'/'+'repgenr.log','a') as fo:
+        fo.write(' '.join(cmd)+'\n')
 #/
 # Run the subprocess with the constructed command
 cmd_timestamp_start = ['printf "[INFO][TIMESTAMP][START] %s\n" "$(date)"']
