@@ -8,6 +8,7 @@ import gzip
 import ast
 import shutil
 import subprocess
+import time
 
 
 ### Parse input arguments
@@ -104,31 +105,60 @@ if halt_after_accession_list:
 ##/
 
 ## Download genome fastas
-print('Running NCBI-DATASETS software (download genomes)')
-if accessions_to_download:
-    ncbi_datasets_cmd = ['datasets','download','genome','accession',
-                         '--inputfile',workdir+'/'+'ncbi_acc_download_list.txt',
-                         '--filename',workdir+'/'+'ncbi_download.zip']
+def ncbi_downloader(ncbi_datasets_cmd):
+    #
+    # This function passes an input command to NCBI datasets through Popen and parses its outout in a "clean" way
+    #
+    
+    prev_write_timestamp = None
+    rows_100_perc_written = set()
     try:
+        # print execution start
+        print('[[NCBI-DATASETS] started',flush=True)
+        #/
         ncbi_datasets_process = subprocess.Popen(ncbi_datasets_cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         while ncbi_datasets_process.poll() is None:
             line_raw = ncbi_datasets_process.stdout.readline() # bufsize?
             line = line_raw.decode()
             line = line.strip('\n')
             if not line: continue
-        
-            # write status update lines with carriage return
-            if line.startswith('Downloading') or (line.find('Collecting') != -1 and line.find('records') != -1):
-                print('[NCBI-DATASETS] ' + line)
-                pass
-            else:
-                print('[NCBI-DATASETS] ' + line)
+            
+            # write status update lines
+            if (prev_write_timestamp == None) or (time.time() - prev_write_timestamp >= 5) or (line.find('100%') != -1): #only print once every X:th second (log gets clogged otherwise) but allow "finish/100%"-line
+                # check if "finish/100%"-line and if it was already printed
+                if line.find('100%') != -1:
+                    # try to remove any ANSI-code that tells the cursor to move up "[2K"
+                    try:
+                        if line.find('[2K') != -1:
+                            line=line.split('[2K')[1]
+                    except:
+                        pass
+                    #/
+                    if line in rows_100_perc_written: continue # skip if already printed
+                    rows_100_perc_written.add(line) # add to memory so it is not printed again
+                #/
+                prev_write_timestamp = time.time()
+                if line.startswith('Downloading') or (line.find('Collecting') != -1 and line.find('records') != -1):
+                    print('[NCBI-DATASETS] ' + line,flush=True)
+                    pass # I was going to do something else here. For now, all lines are printed
+                else:
+                    print('[NCBI-DATASETS] ' + line,flush=True)
+            #/
+        # print final/flush
+        print('[NCBI-DATASETS] finished',flush=True)
+        #/
     except:
         print('Failed to download from NCBI using "datasets"-software. You can try to run the command manually:')
         print(' '.join(ncbi_datasets_cmd))
         sys.exit()
-    ##/
-    ###/
+
+print('Running NCBI-DATASETS software (download genomes)')
+if accessions_to_download:
+    ncbi_datasets_cmd = ['datasets','download','genome','accession',
+                         '--inputfile',workdir+'/'+'ncbi_acc_download_list.txt',
+                         '--filename',workdir+'/'+'ncbi_download.zip']
+    
+    ncbi_downloader(ncbi_datasets_cmd)
     
     ### Unpack genomes from downloaded zip (into formatted gzipped files)
     print('Unpacking genomes from NCBI download into "genomes"-folder...')
@@ -183,7 +213,7 @@ ncbi_datasets_cmd_outgroup = ['datasets','download','genome','accession',
                               outgroup_accession,
                               '--filename',workdir+'/'+'ncbi_download_outgroup.zip']
 
-subprocess.call(' '.join(ncbi_datasets_cmd_outgroup), shell=True)
+ncbi_downloader(ncbi_datasets_cmd_outgroup)
 
 zip_fo = zipfile.ZipFile(workdir+'/'+'ncbi_download_outgroup.zip','r')
 if not os.path.exists(workdir+'/'+'outgroup'):        os.makedirs(workdir+'/'+'outgroup')

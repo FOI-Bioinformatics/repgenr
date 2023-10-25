@@ -105,9 +105,9 @@ try:
         urllib.request.urlretrieve(metadata_target, workdir+'/'+metadata_file)
     else:
         if nodownload:
-            print(' ^ Will use previously downloaded database, flag --nodownload specified')
+            print(' ^ Will use previously downloaded database, flag --nodownload specified',flush=True)
         elif metadata_path:
-            print(' ^ Will use previously downloaded database: '+metadata_path)
+            print(' ^ Will use previously downloaded database: '+metadata_path,flush=True)
 except:
     print('Could not fetch metadata from:')
     print(metadata_target)

@@ -52,7 +52,7 @@ if args_count_multiple:
 # Construct the command to execute the submodule
 cmd = [submodule + '.py'] + submodule_args
 #/
-# Construct logging module: merge stdout and stderr and save to log through "tee". Try to get the workdir passed to subcommand
+# Construct logging module: merge stdout and stderr (captures output of all subprocesses and subcommands) and save to log through "tee". Try to get the workdir passed to subcommand
 workdir = ''
 for arg_enum,_ in enumerate(submodule_args):
     if arg_enum == 0: continue # backawards checking
@@ -74,7 +74,7 @@ cmd += log_cmd_extension
 # Write command passed to log
 if log_cmd_extension:
     with open(workdir+'/'+'repgenr.log','a') as fo:
-        fo.write(' '.join(cmd)+'\n')
+        fo.write('[CMD] '+' '.join(cmd)+'\n')
 #/
 # Run the subprocess with the constructed command
 cmd_timestamp_start = ['printf "[INFO][TIMESTAMP][START] %s\n" "$(date)"']
