@@ -18,6 +18,7 @@ parser.add_argument('-t','--threads',type=int,default=16,help='Number of total t
 parser.add_argument('-B','--bootstrap',type=int,default=0,help='Number of bootstrap iterations. Only applicable to "--mode accurate". Passes value to IQ-TREE "ultrafast bootstrap" (iqtree -B parameter). Minimum value 1000. (default: 0)')
 parser.add_argument('--no_outgroup',action='store_true',help='If specified, will not include the outgroup organism into the tree calculation')
 parser.add_argument('--all_genomes',action='store_true',help='If specified, will run on all genomes and not on de-replicated genomes')
+parser.add_argument('--keep_msa',action='store_true',help='If specified, will save multiple sequence alignment file "msa_[derep/all].fasta" (accurate-mode only)')
 parser.add_argument('--keep_files',action='store_true',help='If specified, will save intermediary files (accurate-mode only)')
 #/
 # parse input
@@ -31,6 +32,7 @@ workdir = args.workdir
 skip_outgroup = args.no_outgroup
 run_on_all_genomes = args.all_genomes
 
+keep_msa = args.keep_msa
 keep_files = args.keep_files
 #/
 ## validate input
@@ -53,6 +55,11 @@ if bootstrap_num_iterations > 0 and bootstrap_num_iterations < 1000:
     print('Bootstrap value must be at least 1000. For more details, see IQ-TREE documentation, section \n\tULTRAFAST BOOTSTRAP/JACKKNIFE: -B \t Replicates for ultrafast bootstrap')
     sys.exit()
 #/
+# Check keep_msa (requires --mode accurate)
+if keep_msa and not run_mode == 'accurate':
+    print('Arugment --keep_msa requires --run_mode=accurate to run\nTerminating!')
+    sys.exit()
+#/
 ##/
 ###/
 
@@ -66,11 +73,13 @@ workdir = exec_cwd + '/' + workdir # get absolute path to workdir
 if not run_on_all_genomes:
     genome_files_dir = workdir+'/'+'genomes_derep_representants'
     output_file_path = workdir+'/'+'genomes_derep_representants.dnd'
+    msa_output_file_path = workdir+'/'+'msa_derep.fasta' # for --mode accurate only
 #/
 # Else, run on all genomes
 else:
     genome_files_dir = workdir+'/'+'genomes'
     output_file_path = workdir+'/'+'genomes.dnd'
+    msa_output_file_path = workdir+'/'+'msa_all.fasta' # for --mode accurate only
 #/
 ###/
 
@@ -255,6 +264,15 @@ if run_mode == 'accurate':
         with open(output_file_path,'w') as nf:
             for line in f:
                 nf.write(line)
+    ###/
+    ### If user wants to keep tree, copy it to outer
+    if keep_msa:
+        try:
+            shutil.copy2(phylo_wd+'/'+'msa.fasta',msa_output_file_path)
+        except Exception as e:
+            print('Was unable to copy-out multiple sequence alignment to workdir! (--keep_msa)')
+            print(e)
+            print('ignoring error and proceeding.')
     ###/
     ### Clean up workspace
     if not keep_files:
