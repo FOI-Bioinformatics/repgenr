@@ -16,12 +16,14 @@ import time
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory, created by metadata-command')
 parser.add_argument('--accession_list_only',action='store_true',help='If specified, will output NCBI download accession list and then terminate')
+parser.add_argument('--keep_files',action='store_true',help='If specified, will save intermediary files')
 #/
 # parse input
 args = parser.parse_args()
 
 workdir = args.workdir
 halt_after_accession_list = args.accession_list_only
+keep_files = args.keep_files
 #/
 # validate input
 if not os.path.exists(workdir):
@@ -114,7 +116,7 @@ def ncbi_downloader(ncbi_datasets_cmd):
     rows_100_perc_written = set()
     try:
         # print execution start
-        print('[[NCBI-DATASETS] started',flush=True)
+        print('[NCBI-DATASETS] started',flush=True)
         #/
         ncbi_datasets_process = subprocess.Popen(ncbi_datasets_cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         while ncbi_datasets_process.poll() is None:
@@ -165,8 +167,12 @@ if accessions_to_download:
     try:
         with zipfile.ZipFile(workdir+'/'+'ncbi_download.zip','r') as zip_fo:
             if not os.path.exists(workdir+'/'+'genomes'):        os.makedirs(workdir+'/'+'genomes')
-            zip_fo.extractall(workdir+'/'+'ncbi_extract')
-        
+            try:
+                zip_fo.extractall(workdir+'/'+'ncbi_extract')
+            except:
+                print('ZIP extractall failed. Possibly, it is due to a corrupted download from NCBI. Try re-running or else raise an issue. Terminating!')
+                sys.exit()
+            
             # subdir will be at ../ncbi_extract/ncbi_dataset/data/GCx_XXXXXX in extracted folder
             for path,dirnames,filenames in os.walk(workdir+'/'+'ncbi_extract'):
                 for dirname in dirnames:
@@ -194,10 +200,11 @@ if accessions_to_download:
         sys.exit()
             
     # remove ZIP file
-    print('Cleaning workspace...')
-    os.remove(workdir+'/'+'ncbi_download.zip')
-    shutil.rmtree(workdir+'/'+'ncbi_extract')
-    #os.remove(workdir+'/'+'ncbi_acc_download_list.txt')
+    if not keep_files:
+        print('Cleaning workspace...')
+        os.remove(workdir+'/'+'ncbi_download.zip')
+        shutil.rmtree(workdir+'/'+'ncbi_extract')
+        #os.remove(workdir+'/'+'ncbi_acc_download_list.txt')
     #/
 else:
     print('All genomes were already downloaded!')
