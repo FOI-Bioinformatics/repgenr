@@ -106,7 +106,7 @@ if halt_after_accession_list:
     sys.exit()
 ##/
 
-## Download genome fastas
+### Download genome fastas
 def ncbi_downloader(ncbi_datasets_cmd):
     #
     # This function passes an input command to NCBI datasets through Popen and parses its outout in a "clean" way
@@ -162,7 +162,7 @@ if accessions_to_download:
     
     ncbi_downloader(ncbi_datasets_cmd)
     
-    ### Unpack genomes from downloaded zip (into formatted gzipped files)
+    ## Unpack genomes from downloaded zip (into formatted gzipped files)
     print('Unpacking genomes from NCBI download into "genomes"-folder...')
     try:
         with zipfile.ZipFile(workdir+'/'+'ncbi_download.zip','r') as zip_fo:
@@ -193,7 +193,7 @@ if accessions_to_download:
                             genome_fa_target_path = workdir+'/'+'genomes'+'/'+acc_genome_file
                             shutil.copy(genome_fa_path,genome_fa_target_path)
                         except:
-                            print('Error moving files from "ncbi_extract" to "genomes". This should not happen and unless explained by a full disk or permissions should be reported to maintainer. Terminating!')
+                            print('Error moving files from "ncbi_extract" to "genomes". This should not happen and unless explained by a full disk or permissions should be reported to a maintainer. Terminating!')
                             sys.exit()
                         #/
     except zipfile.BadZipFile:
@@ -202,7 +202,12 @@ if accessions_to_download:
     except FileNotFoundError:
         print('ZIP-file from NCBI download was not found - was the connection interrupted? Try re-running this module to see if network issues persist.')
         sys.exit()
-            
+    except Exception as e:
+        print('Unknown error:')
+        print(e)
+        print('Terminating!')
+        sys.exit()
+    ##/
     # remove ZIP file
     if not keep_files:
         print('Cleaning workspace...')
