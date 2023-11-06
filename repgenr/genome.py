@@ -188,9 +188,13 @@ if accessions_to_download:
                             print('Could not locate genome fasta for downloaded accession: '+dirname)
                         
                         # copy genome file to genomes folder
-                        acc_genome_file = format_acc_output_file(accessions[dirname])
-                        genome_fa_target_path = workdir+'/'+'genomes'+'/'+acc_genome_file
-                        shutil.copy(genome_fa_path,genome_fa_target_path)
+                        try:
+                            acc_genome_file = format_acc_output_file(accessions[dirname])
+                            genome_fa_target_path = workdir+'/'+'genomes'+'/'+acc_genome_file
+                            shutil.copy(genome_fa_path,genome_fa_target_path)
+                        except:
+                            print('Error moving files from "ncbi_extract" to "genomes". This should not happen and unless explained by a full disk or permissions should be reported to maintainer. Terminating!')
+                            sys.exit()
                         #/
     except zipfile.BadZipFile:
         print('ZIP-file from NCBI download appears to be corrupted - was the connection interrupted? Try re-running this module to see if network issues persist.')
