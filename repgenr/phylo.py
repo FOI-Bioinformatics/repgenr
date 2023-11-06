@@ -58,9 +58,9 @@ if bootstrap_num_iterations > 0 and bootstrap_num_iterations < 1000:
     print('Bootstrap value must be at least 1000. For more details, see IQ-TREE documentation, section \n\tULTRAFAST BOOTSTRAP/JACKKNIFE: -B \t Replicates for ultrafast bootstrap')
     sys.exit()
 #/
-# Check keep_msa (requires --mode accurate)
-if keep_msa and not run_mode == 'accurate':
-    print('Arugment --keep_msa requires --run_mode=accurate to run\nTerminating!')
+# Check keep_msa/halt_after_msa (requires --mode accurate)
+if (keep_msa or halt_after_msa) and not run_mode == 'accurate':
+    print('Arugment --keep_msa (including --halt_after_msa) requires --run_mode=accurate to run\nTerminating!')
     sys.exit()
 #/
 # check halt_after_msa (requires --mode accurate) and implies --keep_msa
