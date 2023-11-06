@@ -75,6 +75,7 @@ cmd += log_cmd_extension
 if log_cmd_extension:
     with open(workdir+'/'+'repgenr.log','a') as fo:
         fo.write('[CMD] '+' '.join(cmd)+'\n')
+        fo.write('[CWD] '+os.getcwd()+'\n')
 #/
 # Run the subprocess with the constructed command
 cmd_timestamp_start = ['printf "[INFO][TIMESTAMP][START] %s\n" "$(date)"']
