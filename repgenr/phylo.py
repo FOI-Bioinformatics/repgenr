@@ -63,14 +63,10 @@ if (keep_msa or halt_after_msa) and not run_mode == 'accurate':
     print('Arugment --keep_msa (including --halt_after_msa) requires --run_mode=accurate to run\nTerminating!')
     sys.exit()
 #/
-# check halt_after_msa (requires --mode accurate) and implies --keep_msa
-if halt_after_msa and not run_mode == 'accurate':
-    # toggle on --keep_msa if it was not done
-    if not keep_msa:
-        print('--keep_msa was not specified: Setting --keep_msa to True')
-    #/
-    print('Arugment --halt_after_msa requires --run_mode=accurate to run\nTerminating!')
-    sys.exit()
+# check halt_after_msa (implies --keep_msa; toggle on --keep_msa if it was not done)
+if halt_after_msa and not keep_msa:
+    print('[INFO] --keep_msa was not specified: Setting --keep_msa to True')
+    keep_msa = True
 #/
 ##/
 ###/
