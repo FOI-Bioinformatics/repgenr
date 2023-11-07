@@ -127,6 +127,9 @@ def ncbi_downloader(ncbi_datasets_cmd):
             
             # write status update lines
             if (prev_write_timestamp == None) or (time.time() - prev_write_timestamp >= 5) or (line.find('100%') != -1): #only print once every X:th second (log gets clogged otherwise) but allow "finish/100%"-line
+                # update print-timestamp
+                prev_write_timestamp = time.time()
+                #/
                 # check if "finish/100%"-line and if it was already printed
                 if line.find('100%') != -1:
                     # try to remove any ANSI-code that tells the cursor to move up "[2K"
@@ -139,12 +142,15 @@ def ncbi_downloader(ncbi_datasets_cmd):
                     if line in rows_100_perc_written: continue # skip if already printed
                     rows_100_perc_written.add(line) # add to memory so it is not printed again
                 #/
-                prev_write_timestamp = time.time()
                 if line.startswith('Downloading') or (line.find('Collecting') != -1 and line.find('records') != -1):
                     print('[NCBI-DATASETS] ' + line,flush=True)
                     pass # I was going to do something else here. For now, all lines are printed
                 else:
                     print('[NCBI-DATASETS] ' + line,flush=True)
+            #/
+            # Check if line contains error-information, then print the line
+            if line.startswith('Error'):
+                print('[NCBI-DATASETS] ' + line)
             #/
         ## print final/flush
         # wait for process signal and check if it terminated correctly
