@@ -146,9 +146,23 @@ def ncbi_downloader(ncbi_datasets_cmd):
                 else:
                     print('[NCBI-DATASETS] ' + line,flush=True)
             #/
-        # print final/flush
-        print('[NCBI-DATASETS] finished',flush=True)
+        ## print final/flush
+        # wait for process signal and check if it terminated correctly
+        return_code = ncbi_datasets_process.wait()
+        if not return_code == 0:
+            # If have errors, then print them
+            print('FATAL: NCBI datasets terminated unexpectedly with the following code:')
+            print(return_code)
+            print('Please report to a maintainer or try again. Terminating!')
+            sys.exit()
+            #/
+        else:
+            # If no errors, print final
+            print('[NCBI-DATASETS]',flush=True)# add a dummy-print. otherwise then sometimes the first character from below print is removed. probably residues from ncbi-datasets-line-parser (which shifts cursor position)
+            print('[NCBI-DATASETS] finished',flush=True)
+            #/
         #/
+        ###/
     except:
         print('Failed to download from NCBI using "datasets"-software. You can try to run the command manually:')
         print(' '.join(ncbi_datasets_cmd))
