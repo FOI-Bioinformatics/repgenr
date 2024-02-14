@@ -21,7 +21,7 @@ Quick installation guide for users who are familiar with the command line:
 ```bash
 
 # Create a new environment and install dependencies. Make sure to activate the environment before installing RepGenR.
-mamba create -n RepGenR -c bioconda -y python=3 matplotlib drep checkm-genome ncbi-datasets-cli mashtree progressivemauve iqtree ete3
+mamba create -n RepGenR -y python=3 matplotlib drep checkm-genome ncbi-datasets-cli mashtree progressivemauve iqtree ete3
 
 # Clone the repository
 git clone https://github.com/FOI-Bioinformatics/repgenr.git
