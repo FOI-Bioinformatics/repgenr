@@ -26,11 +26,11 @@ mamba create -n RepGenR -y python=3 matplotlib drep checkm-genome ncbi-datasets-
 # Clone the repository
 git clone https://github.com/FOI-Bioinformatics/repgenr.git
 
-# Navigate to the RepGenR directory
+# Navigate to the RepGenR directory and install
 cd repgenr
 pip install .
 
-# Follow the detailed installation instructions in the wiki
+# For detailed installation instructions please refer to the wiki
 ```
 ## Usage
 For a complete guide on how to use RepGenR, please refer to the [wiki](https://github.com/FOI-Bioinformatics/repgenr/wiki). Here's a quick start command to get you running:
