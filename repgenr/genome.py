@@ -13,7 +13,11 @@ import time
 
 ### Parse input arguments
 # setup
-parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, description = 
+'''
+Download and organize genomes from "metadata" module
+''')
+
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory, created by metadata-command')
 parser.add_argument('--accession_list_only',action='store_true',help='If specified, will output NCBI download accession list and then terminate')
 parser.add_argument('--keep_files',action='store_true',help='If specified, will save intermediary files')
@@ -174,7 +178,7 @@ def ncbi_downloader(ncbi_datasets_cmd):
         print(' '.join(ncbi_datasets_cmd))
         sys.exit()
 
-print('Running NCBI-DATASETS software (download genomes)')
+print('Running NCBI-DATASETS software (download genomes)',flush=True)
 if accessions_to_download:
     ncbi_datasets_cmd = ['datasets','download','genome','accession',
                          '--inputfile',workdir+'/'+'ncbi_acc_download_list.txt',
@@ -183,7 +187,7 @@ if accessions_to_download:
     ncbi_downloader(ncbi_datasets_cmd)
     
     ## Unpack genomes from downloaded zip (into formatted gzipped files)
-    print('Unpacking genomes from NCBI download into "genomes"-folder...')
+    print('Unpacking genomes from NCBI download into "genomes"-folder...',flush=True)
     try:
         with zipfile.ZipFile(workdir+'/'+'ncbi_download.zip','r') as zip_fo:
             if not os.path.exists(workdir+'/'+'genomes'):        os.makedirs(workdir+'/'+'genomes')
@@ -205,7 +209,7 @@ if accessions_to_download:
                                 break
                         
                         if not genome_fa_path:
-                            print('Could not locate genome fasta for downloaded accession: '+dirname)
+                            print('Could not locate genome fasta for downloaded accession: '+dirname,flush=True)
                         
                         # copy genome file to genomes folder
                         try:
@@ -230,17 +234,17 @@ if accessions_to_download:
     ##/
     # remove ZIP file
     if not keep_files:
-        print('Cleaning workspace...')
+        print('Cleaning workspace...',flush=True)
         os.remove(workdir+'/'+'ncbi_download.zip')
         shutil.rmtree(workdir+'/'+'ncbi_extract')
         #os.remove(workdir+'/'+'ncbi_acc_download_list.txt')
     #/
 else:
-    print('All genomes were already downloaded!')
+    print('All genomes were already downloaded!',flush=True)
 ###/
 
 ### Download outgroup sample
-print('Downloading and extracting outgroup sample...')
+print('Downloading and extracting outgroup sample...',flush=True)
 outgroup_accession = None
 with open(workdir+'/'+'outgroup_accession.txt','r') as f:
     outgroup_accession = f.readline().strip('\n')
@@ -266,6 +270,6 @@ for item in zip_fo.namelist():
             #/
 zip_fo.close()
 
+print('Cleaning workspace...',flush=True)
 os.remove(workdir+'/'+'ncbi_download_outgroup.zip')
-print('Cleaning workspace...')
 ###/

@@ -11,7 +11,12 @@ from multiprocessing import Pool
 
 ### Parse input arguments
 # setup
-parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, description = 
+'''
+Compute phylogenetic tree based on all or representative genomes
+''')
+
+
 parser.add_argument('-m','--mode',required=True,choices=('accurate','fast',),help='Strategy to use for tree generation (accurate: pairwise progressivemauve+iqtree, fast: mashtree)')
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory, created by metadata-command')
 parser.add_argument('-t','--threads',type=int,default=16,help='Number of total threads to use (default: 16)')
@@ -21,6 +26,7 @@ parser.add_argument('--all_genomes',action='store_true',help='If specified, will
 parser.add_argument('--halt_after_msa',action='store_true',help='If specified, will stop execution the multiple sequence alignment file is generated. Implies "--keep_msa". This argument is useful when RepGenR is used as part of another pipe (accurate-mode only)')
 parser.add_argument('--keep_msa',action='store_true',help='If specified, will save multiple sequence alignment file "msa_[derep/all].fasta" (accurate-mode only)')
 parser.add_argument('--keep_files',action='store_true',help='If specified, will save intermediary files (accurate-mode only)')
+parser.add_argument('--progressivemauve_ref',required=False,default=None,help='Accurate mode only. Specify file-name including extension of reference to use during progressivemauve (default: use first genome file in directory)')
 #/
 # parse input
 args = parser.parse_args()
@@ -37,6 +43,8 @@ halt_after_msa = args.halt_after_msa
 
 keep_msa = args.keep_msa
 keep_files = args.keep_files
+
+pmauve_ref = args.progressivemauve_ref
 #/
 ## validate input
 # check dirs
@@ -73,7 +81,7 @@ if halt_after_msa and not keep_msa:
 
 ### Get absolute path for workdir, needed for software calls
 exec_cwd = os.getcwd()
-workdir = exec_cwd + '/' + workdir # get absolute path to workdir
+if not workdir[0] == '/':       workdir = exec_cwd + '/' + workdir # get absolute path to workdir unless it was already supplied (full paths start with a slash, i.e. "/path/to/my/wd" as opposed to relative path "wd/")
 ###/
 
 ### Set input/output paths depending on input type (all genomes vs. dereplicated genomes)
@@ -105,16 +113,23 @@ if run_mode == 'accurate':
     ###/
     
     ### Run progressivemauve and convert to fasta
-    pmauve_ref = None
     pmauve_genome_list = []
     ## Find genomes to use. Softlink to new directory (progressivemauve produes additional files at input location...)
     # Get genomes
     for enum,file_ in enumerate(sorted(os.listdir(genome_files_dir))):
-        # make first file the reference
-        if enum == 0:
-            pmauve_ref = file_
+        # if the user did not supply the name of a reference to use in progressivemauve then make the first file in the directory the reference
+        if pmauve_ref == None:
+            if enum == 0:
+                pmauve_ref = file_
         #/
         pmauve_genome_list.append(genome_files_dir+'/'+file_)
+    #/
+    # verify that the pmauve reference exists in genomes-directory (only practically effective when the user supplied a name)
+    if not os.path.exists(genome_files_dir+'/'+pmauve_ref):
+        print('WARNING: could not locate file for reference genome during progressivemauve: '+pmauve_ref)
+        print('If you entered this manually, please make sure the file exist in the genome directory: '+str(genome_files_dir))
+        print('Terminating!')
+        sys.exit()
     #/
     # Check if add in outgroup
     if not skip_outgroup:

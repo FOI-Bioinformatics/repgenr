@@ -7,8 +7,11 @@ import argparse
 import time
 
 
-submodules_available = ('metadata','genome','glance','derep','derep_stocker','phylo','tree2tax',)
-software_description = 'RepGenR:'
+submodules_available = ('metadata','vmetadata','genome','vgenome','glance','derep','derep_unpack','derep_stocker','phylo','tree2tax',)
+software_description = '''
+                        RepGenR:
+                            
+                        '''
 
 ## Define argparse
 argparser = argparse.ArgumentParser(description=software_description)
@@ -48,9 +51,22 @@ if args_count_multiple:
     sys.exit()
 #/
 ##/
-## Execute submodule
-# Construct the command to execute the submodule
-cmd = [submodule + '.py'] + submodule_args
+### Execute submodule
+## Construct the command to execute the submodule
+# init cmd with submodule call
+cmd = [submodule + '.py']
+#/
+# append arguments to the submodule. Check if the arguments have spaces within then, then add quotation
+submodule_args2 = []
+for entry in submodule_args:
+    # add qutoes around inputs with spaces
+    if entry.find(' ') != -1:
+        entry = '"'+entry+'"'
+    #/
+    # save
+    submodule_args2.append(entry)
+    #/
+cmd += submodule_args2
 #/
 # Construct logging module: merge stdout and stderr (captures output of all subprocesses and subcommands) and save to log through "tee". Try to get the workdir passed to subcommand
 workdir = ''
@@ -71,6 +87,7 @@ if workdir:
 
 cmd += log_cmd_extension
 #/
+##/
 # Write command passed to log
 if log_cmd_extension:
     with open(workdir+'/'+'repgenr.log','a') as fo:
@@ -97,7 +114,7 @@ cmd_runtime = ['printf "[INFO][RUNTIME] '+f'Elapsed time: {int(hours):02d} hours
 cmd_runtime += log_cmd_extension
 subprocess.call(' '.join(cmd_runtime),shell=True)
 #/
-##/
+###/
 # add dummy function for setup.py entry-point
 def main():
     pass
