@@ -7,7 +7,7 @@ import argparse
 import time
 
 
-submodules_available = ('metadata','vmetadata','genome','vgenome','glance','derep','derep_unpack','derep_stocker','phylo','tree2tax',)
+submodules_available = ('metadata','vmetadata','genome','vgenome','glance','derep','derep_unpacker','derep_stocker','phylo','tree2tax',)
 software_description = '''
                         RepGenR:
                             
