@@ -18,8 +18,8 @@ Organize genomes and select outgroup from "vmetadata" module. Virus-equivalent f
 ''')
 
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory. This folder will be created if not already present')
-parser.add_argument('-t','--taxids',required=False,default=None,help='[NOT EFFECTIVE ATM: select using "Taxnonomy selection" with NCBI] If supplied, will parse sequences by taxonomic identifiers. Multiple values are separated by comma')
-parser.add_argument('-n','--names',required=False,default=None,help='[NOT EFFECTIVE ATM: select using "Taxnonomy selection" with NCBI] If supplied, will parse sequences by taxonomic names (case-independent exact match). Multiple values are separated by comma')
+#parser.add_argument('-t','--taxids',required=False,default=None,help='[NOT EFFECTIVE ATM: select using "Taxnonomy selection" with NCBI] If supplied, will parse sequences by taxonomic identifiers. Multiple values are separated by comma')
+#parser.add_argument('-n','--names',required=False,default=None,help='[NOT EFFECTIVE ATM: select using "Taxnonomy selection" with NCBI] If supplied, will parse sequences by taxonomic names (case-independent exact match). Multiple values are separated by comma')
 parser.add_argument('--no_outgroup',required=False,action='store_true',default=None,help='If specified, will not determine an outgroup (default: determine outgroup)')
 parser.add_argument('--outgroup_candidates_taxid_min_genomes',required=False,type=int,default=5,help='When selecting outgroup candidates, only include taxids with at least this number of genomes (default:5)')
 
@@ -40,8 +40,8 @@ grp_tax_selection.add_argument('-tse','--target_serotype',required=False,default
 grp_tax_selection.add_argument('-tc','--target_custom',required=False,default=None,help='Target "custom". Supply a custom taxonomic level and value to match. Example: --target_custom undefined_strain:FX900 to get datasets with FX900 in column "undefined_strain". Multiple values are separated by comma')
 
 
-parser.add_argument('--no_ncbi',action='store_true',help='[NOT SUPPORTED ATM: NCBI REQUIRED] If specified, will not use NCBI metadata from previous step (default: use NCBI metadata)')
-parser.add_argument('--limit',type=int,default=None,help='[NOT EFFECTIVE] Limits the analysis to the specified number of genomes (e.g. for test/debug purposes)')
+#parser.add_argument('--no_ncbi',action='store_true',help='[NOT SUPPORTED ATM: NCBI REQUIRED] If specified, will not use NCBI metadata from previous step (default: use NCBI metadata)')
+#parser.add_argument('--limit',type=int,default=None,help='[NOT EFFECTIVE] Limits the analysis to the specified number of genomes (e.g. for test/debug purposes)')
 parser.add_argument('--glance',action='store_true',help='If specified, will print dataset selection and terminate')
 parser.add_argument('--print_fasta_headers',action='store_true',help='If specified, will print fasta headers of selected sequences. Couple with --glance to terminate before writing genome sequences as output')
 parser.add_argument('--keep_files',action='store_true',help='If specified, will save intermediary files')
@@ -58,8 +58,8 @@ else:
 
 workdir = args.workdir
 
-input_taxids_raw = args.taxids
-input_taxnames_raw = args.names
+input_taxids_raw = None #input_taxids_raw = args.taxids
+input_taxnames_raw = None #input_taxnames_raw = args.names
 do_not_generate_outgroup = args.no_outgroup
 outgroup_candidates_taxid_min_genomes = args.outgroup_candidates_taxid_min_genomes
 
@@ -80,9 +80,8 @@ tax_target_custom = args.target_custom
 #/
 
 
-#outgroup_accession = args.outgroup_accession
-limit_samples = args.limit
-no_ncbi = args.no_ncbi
+limit_samples = None # limit_samples = args.limit
+no_ncbi = False # no_ncbi = args.no_ncbi
 perform_glance = args.glance
 perform_fasta_header_print = args.print_fasta_headers
 keep_files = args.keep_files
@@ -130,17 +129,16 @@ if not os.path.exists(family_fasta_file_path):
     sys.exit()
 #/
 # check if metadata-file exist from previous script
-if 0 and 'notused':
-    metadata_file_path = workdir+'/'+'virus_download_wd'+'/'+'metadata_base.tsv'
-    if not os.path.exists(metadata_file_path):
-        print('Was unable to locate metadata file for viral sequences. Make sure the virus metadata module was run')
-        print('Terminating')
-        sys.exit()
+metadata_file_path = workdir+'/'+'virus_download_wd'+'/'+'metadata_base.tsv'
+if not os.path.exists(metadata_file_path):
+    print('Was unable to locate metadata file for viral sequences. Make sure the virus metadata module was run')
+    print('Terminating')
+    sys.exit()
 #/
 # check so user input any tax to select
 if not (tax_target_genus or tax_target_species or tax_target_serotype or tax_target_custom):
     print('No taxonomy selected. Please select a taxonomy using parameters under "Taxonomy Selection". See --help for info')
-    print('To overview downloaded taxonomy metadata, see TSV-files in workdir [temporarily under virus_download_wd]')
+    print('To overview downloaded taxonomy metadata, see TSV-files at the specified workdir')
     print('Terminating')
     sys.exit()
 #/
@@ -449,6 +447,7 @@ for taxid,bvbrc_ids_lens in seqs_selected1.items():
         if pass_len and pass_discard_tag:
             if not taxid in seqs_selected2:     seqs_selected2[taxid] = {}
             seqs_selected2[taxid][bvbrc_id] = seq_len
+            num_passed += 1
         #/
 
 print('After filtering sequence lengths there are '+str(num_passed)+' sequences (by length: '+str(num_passed_len)+', by discard-tag [if supplied]: '+str(num_passed_tag)+')',flush=True)

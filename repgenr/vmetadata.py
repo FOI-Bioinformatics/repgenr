@@ -37,13 +37,9 @@ parser.add_argument('-tf','--target_family',required=True,help='Target family (E
 
 parser.add_argument('-f','--filter',required=False,default='complete genome',help='Filter for fasta headers to use when determining sequences to use for length-estimate (default: use sequences with headers containing "complete genome" to determine length)')
 
-parser.add_argument('-ncbi','--ncbi_metadata',required=False,action='store_true',default=True,help='[REQUIRED AS OF NOW FOR DOWNSTREAM] If specified, will download additional metadata (e.g taxonomic names) from NCBI using Entrez (default: do not download NCBI metadata)')
+#parser.add_argument('-ncbi','--ncbi_metadata',required=False,action='store_true',default=True,help='[REQUIRED AS OF NOW FOR DOWNSTREAM] If specified, will download additional metadata (e.g taxonomic names) from NCBI using Entrez (default: do not download NCBI metadata)')
 
-parser.add_argument('--nodownload',action='store_true',help='[PLACEHOLDER]')
-parser.add_argument('--metadata_path',help='[PLACEHOLDER]')
-
-parser.add_argument('--outgroup_accession',default=None,help='[PLACEHOLDER]')
-parser.add_argument('--limit',type=int,default=None,help='Limits the analysis to the specified number of genomes (e.g. for test/debug purposes)')
+#parser.add_argument('--limit',type=int,default=None,help='Limits the analysis to the specified number of genomes (e.g. for test/debug purposes)')
 #/
 # parse input
 if 1 and 'run':
@@ -60,13 +56,7 @@ workdir = args.workdir
 
 filter_require_fasta_match = args.filter
 
-parse_metadata_from_ncbi = args.ncbi_metadata
-
-nodownload = args.nodownload
-metadata_path = args.metadata_path
-
-outgroup_accession = args.outgroup_accession
-limit_samples = args.limit
+parse_metadata_from_ncbi = True
 #/
 # validate input
 if not target_family:
