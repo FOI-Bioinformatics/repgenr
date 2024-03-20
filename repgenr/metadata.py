@@ -11,7 +11,11 @@ taxonomy_ordered = ('domain','phylum','class','family','genus','species')
 
 ### Parse input arguments
 # setup
-parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, description = 
+'''
+Retrieve metadata from GTDB for selected taxonomy and outgroup
+''')
+
 parser.add_argument('-r','--release',required=True,help='Release-version of GTDB to use, must include major followed by minor release versions.\nExample: 207.0, where major release is 207 and minor release is 0\nSee available releases at https://data.gtdb.ecogenomic.org/releases/')
 parser.add_argument('-v','--version',required=True,choices=('bac120','ar53',),help='Database version to use')
 parser.add_argument('-d','--dataset',required=True,choices=('all','rep',),help='Dataset to use')
@@ -116,7 +120,7 @@ except:
 ###/
 
 ### Read GTDB database
-print('Parsing metadata-file...')
+print('Parsing metadata-file...',flush=True)
 
 # check if user provided a path to metadata file
 if metadata_path:
@@ -257,7 +261,7 @@ for acc in accessions_data:
 ###/
 
 ### Parse specified organism and get all other samples at specified level
-print('Parsing target and other organisms at specified level...')
+print('Parsing target and other organisms at specified level...',flush=True)
 ## Get target values at taxonomic levels
 target_value_per_level = {}
 for acc,data in accessions_data.items():
@@ -358,7 +362,7 @@ else:
 ###/
 
 ### Summarize selected metadata
-print('Summarizing data...')
+print('Summarizing data...',flush=True)
 tax_val_counts = {}
 for acc, data in accessions_selected.items():
     for tax,val in data['tax_gtdb'].items():
@@ -368,7 +372,7 @@ for acc, data in accessions_selected.items():
 ###/
 
 ### Output summary and selected accessions
-print('Writing output...')
+print('Writing output...',flush=True)
 if not os.path.exists(workdir):          os.makedirs(workdir)
 ## Summary
 # table

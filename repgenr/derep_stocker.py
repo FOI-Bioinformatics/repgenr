@@ -9,7 +9,12 @@ import filecmp
 
 ### Parse input arguments
 # setup
-parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, description = 
+'''
+Store and load runs of the "derep" module
+''')
+
+
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory, created by metadata and genome commands')
 parser.add_argument('-n','--name',required=False,help='Name to use for packing/unpacking of derep run')
 parser.add_argument('--list',action='store_true',help='If specified, will list saved runs')
@@ -142,7 +147,10 @@ if execute_pack:
     # link-in genomes listed in {--workdir}/genomes_derep_representants from {--workdir}/genomes into {--workdir}/derep_stocker/{run_name}/genomes_derep_representants
     os.makedirs(run_path+'/'+'genomes_derep_representants')
     for file_ in os.listdir(workdir+'/'+'genomes_derep_representants'):
-        os.symlink(os.getcwd()+'/'+workdir+'/'+'genomes'+'/'+file_,run_path+'/'+'genomes_derep_representants'+'/'+file_)
+        source_path = workdir+'/'+'genomes'+'/'+file_
+        if source_path[0] != '/': source_path = os.getcwd()+'/'+source_path # if the workdir was not supplied with a full path (i.e. "/path/to/my/wd" as opposed to relative path "wd/") then add the CWD
+        target_path = run_path+'/'+'genomes_derep_representants'+'/'+file_
+        os.symlink(source_path,target_path)
     #/
     ##/
     # halt execution when --pack finished

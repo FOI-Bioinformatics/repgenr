@@ -10,7 +10,11 @@ from matplotlib import pyplot as plt
 
 ### Parse input arguments
 # setup
-parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, description = 
+'''
+Perform rapid overview of ANI-clusters
+''')
+
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory, created by metadata and genome commands')
 parser.add_argument('-t','--threads',type=int,default=24,help='Number of threads to use')
 parser.add_argument('--plot_max',type=float,default=1,help='Maximum value to be included in boxplot and histogram (default:not set)')

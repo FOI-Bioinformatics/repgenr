@@ -10,7 +10,12 @@ import hashlib
 
 ### Parse input arguments
 # setup
-parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, description = 
+'''
+Using the phylogenetic tree, generate files compatible with downstream applications such as FlexTaxD
+''')
+
+
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory, created by metadata-command')
 parser.add_argument('--node_basename',default=None,help='Input a basename of nodes in output relations. Each node will be enumerated using the basename as prefix.\nIf unset, will generate a node name hash based on leaf names (should ensure node unique naming in any modified database)')
 parser.add_argument('-r','--root_name',default=None,nargs='+',help='Specify the root name in output relations')

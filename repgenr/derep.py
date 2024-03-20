@@ -7,10 +7,18 @@ import shutil
 import subprocess
 from multiprocessing import Pool
 
+### Script internal function
+def round_down_to_nearest(number,round_to):
+    return (number // round_to) * round_to
+###/
 
 ### Parse input arguments
 # setup
-parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, description = 
+'''
+Cluster genomes based on average nucleotide identity (ANI) using the dRep software
+''')
+
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory, created by metadata and genome commands')
 parser.add_argument('-sani','--secondary_ani',default=0.99,help='Average nucleotide identity (ANI) threshold for clustering in sensitive step of dRep (secondary clustering) (default: 0.99)')
 parser.add_argument('-pani','--primary_ani',default=0.90,help='Average nucleotide identity (ANI) threshold for clustering in rough step of dRep (primary clustering) (default: 0.9)')
@@ -24,6 +32,7 @@ parser.add_argument('--keep_files',action='store_true',help='If specified, will 
 parser.add_argument('--skip_intermediary',action='store_true',help='If specified, will not attempt to recycle intermediary files from dRep')
 parser.add_argument('--prompt',action='store_true',help='If specified and using the "chunking" feature (process_size < "number of input genomes") will prompt to continue to secondary dRep-run. This can be used to adjust parameters in the first round of dRep that is run on chunks.')
 parser.add_argument('--secondary_only',action='store_true',help='If specified, will only do the second round of dRep on previously generated data from "chunks"')
+parser.add_argument('--virus',action='store_true',help='If specified, will pass virus-tuned parameters to dRep.')
 #/
 # parse input
 args = parser.parse_args()
@@ -48,6 +57,7 @@ skip_intermediary = args.skip_intermediary
 prompt_before_step2 = args.prompt
 
 drep_secondary_run_only = args.secondary_only
+drep_virus_mode = args.virus
 #/
 # validate input
 if not os.path.exists(workdir):
@@ -68,6 +78,19 @@ if not os.path.exists(workdir+'/'+'genomes'):
     sys.exit()
 ###/
 
+### WARNING: Put a warning for user if using pairwise aligners (e.g. ANImf as is run with --virus). It creates a squared number of intermediary files which leads to OS issues due to millions of files in a folder
+num_genomes_files = len(os.listdir(workdir+'/'+'genomes'))
+if (drep_virus_mode or S_algorithm != 'fastANI') and (num_genomes_files > 200 and (process_size == False or process_size > 200)):
+    print('WARNING: a large number of genome-files are going to be run through dRep using a pairwise aligner. This generates a squared number of output that has multiple files per input, which may result in millions of files in a directory and subsequently slow down the OS.')
+    print('For example, just the drep_workdir/log/cmd_logs/ will have 750\'000 files for 500 input sequences (3 files per sample, run in all-vs-all)')
+    print('You can alleviate this issue by using --process_size <num_genomes_per_process> and it is recommended that this number is below 200')
+    print('Recommended size for --process_size is between 100-200. A smaller number may lead to faster execution.')
+    print('\nPausing for a few seconds. Did you read it yet? ;)',flush=True)
+    # sleep for some seconds to user has a chance to see message
+    import time
+    time.sleep(5)
+    #/
+###/
 
 ### init workspace for chunking
 # Define workingdir for chunking and make it (./dereplication_workdir with subfolder "intra_chunks" (stage1: drep on chunked genomes) and "inter_chunks" (stage2: drep on output from stage1)
@@ -89,8 +112,26 @@ if not os.path.exists(workdir+'/'+'genomes'):
 
 chunks_workdir = workdir+'/'+'dereplication_workdir' # the results will be returned to derep_chunks_genomes
 if os.path.exists(chunks_workdir):
+    print('A previous directory for drep chunks was found. It will be deleted now before creating the new one',flush=True)
+    # For INFO, get number of files to remove. Found that sometimes clearing a previous workdir is EXTREMELY slow when the previous run generated alot of bullshit files
+    print('Checking number of files to remove...',flush=True)
+    num_files = 0
+    warned_at = set()
+    warned_at2 = set()
+    for path,dirs,files in os.walk(chunks_workdir):
+        num_files += len(files)
+        round_500k = round_down_to_nearest(num_files,500000)
+        if round_500k > 0 and not round_500k in warned_at:
+            print('Current file count is '+'{:,} and counting...'.format(num_files),flush=True)
+            warned_at.add(round_500k)
+            
+            round_1M = round_down_to_nearest(num_files,1000000)
+            if round_1M > 0 and not round_1M in warned_at2:
+                print('A large number of files can lead to long removal times. Please stay put',flush=True)
+                warned_at2.add(round_1M)
+    #/
     # Delete workding directory if it previously existed. We need to make sure the input to drep do not change if a user re-runs the command
-    print('A previous directory for drep chunks was found. It will be deleted now before creating the new one')
+    print('Number of files to remove: '+'{:,}'.format(num_files),flush=True)
     shutil.rmtree(chunks_workdir)
     #/
 if not os.path.exists(chunks_workdir):     os.makedirs(chunks_workdir)
@@ -112,16 +153,16 @@ for file_ in os.listdir(workdir+'/'+'genomes'):
 
 #@ Check if there's a single genome in last chunk. If so, append it to next-to-last chunk
 if downloaded_genomes_chunked and len(downloaded_genomes_chunked[-1]) == 1:
-    print('When splitting input into chunks, the last chunk had only one genome. Will move this genome to another chunk.')
+    print('When splitting input into chunks, the last chunk had only one genome. Will move this genome to another chunk.',flush=True)
     downloaded_genomes_chunked[-2] += downloaded_genomes_chunked[-1] # append last chunk to next-to-last
     del downloaded_genomes_chunked[-1] # remove last
 #@/
 
 if not drep_secondary_run_only: # dont print this status if we only do stage2
-    print('Total of '+str(sum(map(len,downloaded_genomes_chunked)))+ ' downloaded genomes were split into '+str(len(downloaded_genomes_chunked))+' jobs')
+    print('Total of '+str(sum(map(len,downloaded_genomes_chunked)))+ ' downloaded genomes were split into '+str(len(downloaded_genomes_chunked))+' jobs',flush=True)
 #/
 # Soft-link genomes into chunked workspaces
-print('Soft-linking genomes into subprocess workding directories')
+print('Soft-linking genomes into subprocess workding directories',flush=True)
 for enum,chunk in enumerate(downloaded_genomes_chunked):
     # init chunk wd
     chunk_wd = intra_chunks_wd + '/' + 'chunk'+str(enum)
@@ -142,15 +183,15 @@ intermediary_files_dir = workdir+'/'+'dereplication_intermediary_files'
 skip_intermediary_readFiles = False
 if (not skip_intermediary) and (not os.path.exists(intermediary_files_dir+'/'+'Chdb.csv') or os.path.getsize(intermediary_files_dir+'/'+'Chdb.csv') == 0):
     if os.path.exists(intermediary_files_dir):
-        print('Warning: Could not use intermediary files as they were empty or not located! Will need to re-calculate files')
+        print('Warning: Could not use intermediary files as they were empty or not located! Will need to re-calculate files',flush=True)
     else:
-        print('Folder for intermediary files does not exist. Will create and populate this folder!')
+        print('Folder for intermediary files does not exist. Will create and populate this folder!',flush=True)
     skip_intermediary_readFiles = True
 #/
 #
 if not skip_intermediary_readFiles:
     if os.path.exists(intermediary_files_dir) and os.path.exists(intermediary_files_dir+'/'+'Chdb.csv'):
-        print('Found previously calculated files from dRep, will try to use those (dRep "Filtering" step)')
+        print('Found previously calculated files from dRep, will try to use those (dRep "Filtering" step)',flush=True)
         for enum,chunk in enumerate(downloaded_genomes_chunked):
             chunk_wd_path = intra_chunks_wd + '/' + 'chunk'+str(enum)
             
@@ -191,7 +232,7 @@ if not skip_intermediary_readFiles:
                         nf.write(entry)
                     #/
             else:
-                print('Warning: Did not find previous calculations for all genomes in chunk'+str(enum)+', will need to recompute these!')
+                print('Warning: Did not find previous calculations for all genomes in chunk'+str(enum)+', will need to recompute these!',flush=True)
             #/
 ##/
 ###/
@@ -199,17 +240,35 @@ if not skip_intermediary_readFiles:
 ### Run drep on chunks (stage 1, dereplication intra-chunk)
 ## Define multiprocessing worker (used for stage1 and stage2)
 def drep_worker(wd,pani,sani,threads,print_status):
-    if print_status:            print(print_status + ' started...')
-    # Run drep
-    drep_cmd = ['derep_worker.py','-wd',wd,'--primary_ani',pani,'--secondary_ani',sani,'--threads',threads,'--S_algorithm',S_algorithm]
+    if print_status:            print(print_status + ' started...',flush=True)
+    ## Run drep
+    # compile base CMD
+    drep_cmd = ['derep_worker.py','-wd',wd]
+    #/
+    # add virus-specific arguments to CMD
+    if drep_virus_mode: # check if append virus-related settings (taken from: https://drep.readthedocs.io/en/latest/choosing_parameters.html#comparing-and-dereplicating-non-bacterial-genomes)
+        drep_cmd += ['--S_algorithm','ANImf',
+                     '-nc','0.5', # "cov_thresh"
+                     '-N50W','0', # N50 weight
+                     '-sizeW','1', # size weight
+                     '--ignoreGenomeQuality',
+                     '--clusterAlg','single']
+    #/
+    # add user arguments to CMD
+    drep_cmd += ['--primary_ani',pani,'--secondary_ani',sani,'--threads',threads]
+    if (not drep_virus_mode) or '--S_algorithm' in sys.argv: # add S_algorithm unless we are in virus-mode AND did not explicitly state S_algorithm
+        drep_cmd += ['--S_algorithm',S_algorithm]
+    #/
+    # execute cmd
     subprocess.call(' '.join(map(str,drep_cmd)),shell=True)
     #/
+    ##/
     # Check if output folder was created, else return false
     drep_output_dir = False
     if os.path.exists(wd+'/'+'genomes_derep_representants') and len(os.listdir(wd+'/'+'genomes_derep_representants')) != 0:
         drep_output_dir = wd
     #/
-    if print_status:            print(print_status + ' finished!')
+    if print_status:            print(print_status + ' finished!',flush=True)
     return drep_output_dir
 ##/
 # Execute first round stage 1 (skip if user said to do round 2 only)
@@ -218,7 +277,7 @@ if not drep_secondary_run_only:
     # Check how many parallel processes can be run
     num_processes = min(num_processes,len(downloaded_genomes_chunked))
     num_threads_per_process = int(num_threads/num_processes)
-    print('Processing genomes (number of parallel processes is '+str(num_processes)+ ' at '+str(num_threads_per_process)+' threads each)')
+    print('Processing genomes (number of parallel processes is '+str(num_processes)+ ' at '+str(num_threads_per_process)+' threads each)',flush=True)
     #/
     ##/
     ## start jobs
@@ -228,7 +287,7 @@ if not drep_secondary_run_only:
         chunk_wd_path = intra_chunks_wd+'/'+chunk_wd
         # Check so we have the expected folder structure
         if not os.path.exists(chunk_wd_path+'/'+'genomes'):
-            print('Incorrect folder structure found for directory '+chunk_wd+'\n\tskipping...')
+            print('Incorrect folder structure found for directory '+chunk_wd+'\n\tskipping...',flush=True)
             continue
         #/
         print_status = '[worker '+str(enum+1)+'/'+str(len(downloaded_genomes_chunked))+']' # Idea: Print-status holds the ID of the worker. It will display " [worker 1/50] " (input ID) followed by "started..." and --::-- " finished!" (appended in worker-function)
@@ -242,12 +301,12 @@ if not drep_secondary_run_only:
     for chunk_wd,job in jobs.items():
         jobs_status[chunk_wd] = job.get()
     
-    print('\tProcessing done!')
+    print('\tProcessing done!',flush=True)
     ##/
     ###/
     
     ### Fetch output of chunks (prepare for stage 2)
-    print('Fetching genomes from stage 1')
+    print('Fetching genomes from stage 1',flush=True)
     # Save representative genomes and intermediary data from stage 1
     failed_jobs = []
     genomes_stage1 = []
@@ -257,7 +316,7 @@ if not drep_secondary_run_only:
     for chunk,chunk_output_path in jobs_status.items():
         # Check if this chunk did not execute properly
         if chunk_output_path == False:
-            print('Job '+chunk+' failed with error!')
+            print('Job '+chunk+' failed with error!',flush=True)
             failed_jobs.append(chunk)
             continue
         #/
@@ -299,11 +358,11 @@ if not drep_secondary_run_only:
     #/
     # check if jobs failed
     if failed_jobs:
-        print('Could not run dRep properly. Terminating.')
+        print('Could not run dRep properly. Terminating.',flush=True)
         sys.exit()
     #/
     # print some info
-    print('Number of genomes remaining after first round of dRep on chunks: '+str(len(genomes_stage1))+'/'+str(sum(map(len,downloaded_genomes_chunked))))
+    print('Number of genomes remaining after first round of dRep on chunks: '+str(len(genomes_stage1))+'/'+str(sum(map(len,downloaded_genomes_chunked))),flush=True)
     #/
 #/
 ###/
@@ -311,14 +370,14 @@ if not drep_secondary_run_only:
 ### Run drep on chunks-output (stage 2, dereplication inter-chunk)
 # Remove previous directory of genome representants
 if os.path.exists(workdir+'/'+'genomes_derep_representants'):
-    print('Previous directory of dereplicated genomes was erased')
+    print('Previous directory of dereplicated genomes was erased',flush=True)
     shutil.rmtree(workdir+'/'+'genomes_derep_representants')
 #/
 
 drep_secondary_run = False
 ## Check if we had multiple chunks from stage 1 (then copy results to final folder)
 if not drep_secondary_run_only and len(jobs_status) == 1:
-    print('All datasets was processed in the same batch, will not do a second round of dRep')
+    print('All datasets was processed in the same batch, will not do a second round of dRep',flush=True)
     chunk_output_path = list(jobs_status.items())[0][1]
     shutil.copytree(chunk_output_path+'/'+'genomes_derep_representants',inter_chunks_wd+'/'+'genomes_derep_representants')
     
@@ -393,7 +452,7 @@ else:
                     nf.write(entry)
                 #/
         else:
-            print('Warning: Did not find previous calculations for all genomes to input for secondary dRep run (inter_chunks), will need to recompute these!')
+            print('Warning: Did not find previous calculations for all genomes to input for secondary dRep run (inter_chunks), will need to recompute these!',flush=True)
         #/
     ##/
     drep_worker(inter_chunks_wd,primary_ani,secondary_ani,num_threads,'[worker 1/1]')
@@ -401,7 +460,7 @@ else:
 ###/
 
 ### Fetch final dereplication output and tranfer to master-folder (main workingdirectory)
-print('Finalizing dereplication')
+print('Finalizing dereplication',flush=True)
 shutil.copytree(inter_chunks_wd+'/'+'genomes_derep_representants',workdir+'/'+'genomes_derep_representants')
 
 # Write representative genomes
@@ -411,7 +470,7 @@ with open(workdir+'/'+'derep_representative_genomes.tsv','w') as nf:
 #/
 ###/
 ### Print number of genomes in dereplication-folder
-print('Number of genomes remaining as representative genomes: '+str(len(os.listdir(workdir+'/'+'genomes_derep_representants')))+'/'+str(sum(map(len,downloaded_genomes_chunked))))
+print('Number of genomes remaining as representative genomes: '+str(len(os.listdir(workdir+'/'+'genomes_derep_representants')))+'/'+str(sum(map(len,downloaded_genomes_chunked))),flush=True)
 ###/
 
 ### Summarize compiled sequences
@@ -596,7 +655,26 @@ with open(workdir+'/'+'derep_potentially_discarded_genomes.tsv','w') as nf:
 
 ### Clean up workspace
 if not keep_files:
-    print('Cleaning workspace')
+    print('Cleaning workspace',flush=True)
+    # For INFO, get number of files to remove. Found that sometimes clearing a previous workdir is EXTREMELY slow when the previous run generated alot of bullshit files
+    print('Checking number of files to remove...',flush=True)
+    num_files = 0
+    warned_at = set()
+    warned_at2 = set()
+    for path,dirs,files in os.walk(chunks_workdir):
+        num_files += len(files)
+        round_500k = round_down_to_nearest(num_files,500000)
+        if round_500k > 0 and not round_500k in warned_at:
+            print('Current file count is '+'{:,} and counting...'.format(num_files),flush=True)
+            warned_at.add(round_500k)
+            
+            round_1M = round_down_to_nearest(num_files,1000000)
+            if round_1M > 0 and not round_1M in warned_at2:
+                print('A large number of files can lead to long removal times. Please stay put',flush=True)
+                warned_at2.add(round_1M)
+    
+    print('Number of files to remove: '+'{:,}'.format(num_files),flush=True)
+    #/
     shutil.rmtree(chunks_workdir)
 ###/
 
@@ -610,7 +688,8 @@ if not drep_secondary_run_only:
         nf.write('datasets per split'+'\t'+str(process_size)+'\n')
         nf.write('pre_primary_ani'+'\t'+str(pre_primary_ani)+'\n')
         nf.write('pre_secondary_ani'+'\t'+str(pre_secondary_ani)+'\n')
-        nf.write('S_algorithm'+'\t'+str(S_algorithm)+'\n')
+        if (not drep_virus_mode) or '--S_algorithm' in sys.argv:        nf.write('S_algorithm'+'\t'+str(S_algorithm)+'\n') # write this only if not overridden by --virus or actually passed by the user
+        nf.write('virus_mode'+'\t'+str(drep_virus_mode)+'\n')
 else:
     # get old file
     old_lines = []
