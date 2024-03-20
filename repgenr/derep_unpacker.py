@@ -68,7 +68,7 @@ if not len(clusters) == len(representants_found):
 ###/
 
 ### Perform unpack
-unpack_dir = workdir+'/'+'derep_unpack'
+unpack_dir = workdir+'/'+'derep_unpacker'
 # remove previous unpack directory if it existed
 if os.path.exists(unpack_dir):
     print('Previous directory of unpacked genome clusters found. Will remove this directory before proceeding',flush=True)
