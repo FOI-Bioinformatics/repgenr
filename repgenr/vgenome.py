@@ -45,6 +45,7 @@ grp_tax_selection.add_argument('-tc','--target_custom',required=False,default=No
 parser.add_argument('--glance',action='store_true',help='If specified, will print dataset selection and terminate')
 parser.add_argument('--print_fasta_headers',action='store_true',help='If specified, will print fasta headers of selected sequences. Couple with --glance to terminate before writing genome sequences as output')
 parser.add_argument('--keep_files',action='store_true',help='If specified, will save intermediary files')
+parser.add_argument('--ignore_duplicates',action='store_true',help='If specified, will prevent termination of the software when faced with multiple identical fasta headers (default: terminate)')
 #/
 # parse input
 if 1 and 'run':
@@ -85,6 +86,7 @@ no_ncbi = False # no_ncbi = args.no_ncbi
 perform_glance = args.glance
 perform_fasta_header_print = args.print_fasta_headers
 keep_files = args.keep_files
+ignore_duplicates = args.ignore_duplicates # lets the user disable termination when multiple sequences with the same fasta ID are found (example: >MZ566623)
 #/
 ## Construct input
 # "base" input taxids/taxnames
@@ -439,7 +441,7 @@ for taxid,bvbrc_ids_lens in seqs_selected1.items():
             for discard_tag in seq_discard_tags:
                 if seqs_headers[taxid][bvbrc_id].find(discard_tag) != -1:
                     pass_discard_tag = False
-        if pass_discard_tag:
+        if pass_discard_tag and seq_discard_tags != None:
             num_passed_tag += 1
         #/
         
@@ -502,6 +504,7 @@ for entry in SeqIO.parse(family_fasta_file_path,'fasta'):
         if os.path.exists(fasta_file_name):
             print('WARNING: This fasta file was already written. Sequences are expected to have an unique ID in their headers')
             print(fasta_file_name)
+            print('Apply flag --ignore_duplicates to ignore this warning and proceed, will terminate now.')
             print('Terminating!')
             sys.exit()
         #/
@@ -698,7 +701,7 @@ if not do_not_generate_outgroup:
         print('Proceeding like this did not happen',flush=True)
     #/
     ##/
-    ## Select outgroup (take the outgroup candidate ["O"] with the lowest maximum-value to selected ["S"]) 1 = "very distant" 0 = "identifcal"
+    ## Select outgroup (take the outgroup candidate ["O"] with the lowest maximum-value to selected ["S"]) 1 = "very distant" 0 = "identical"
     # get all O_seq values per S_seq
     S_vs_O_values = {} # S_seqX -> [O_seq values]
     O_vs_S_values = {} # O_seqX -> [S_seq values]
