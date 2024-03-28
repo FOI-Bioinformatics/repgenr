@@ -48,13 +48,15 @@ parser.add_argument('--keep_files',action='store_true',help='If specified, will 
 parser.add_argument('--ignore_duplicates',action='store_true',help='If specified, will prevent termination of the software when faced with multiple identical fasta headers (default: terminate)')
 #/
 # parse input
-if 1 and 'run':
+if 0 and 'run':
     args = parser.parse_args()
 else:
     print('IDE MODE')
-    args = parser.parse_args(['--workdir','IDE_virus',
-                              '--target_genus','mastadenovirus',
-                              '--target_custom','species:Human mastadenovirus B'])
+    args = parser.parse_args(['--workdir','../../2024/tmp_carro_repgenr/Asfarviridae',
+                              '--outgroup_candidates_taxid_min_genomes','0',
+                              '--ignore_duplicates',
+                              '--target_species','African swine fever virus',
+                              '--keep_files'])
 
 
 workdir = args.workdir
@@ -86,7 +88,7 @@ no_ncbi = False # no_ncbi = args.no_ncbi
 perform_glance = args.glance
 perform_fasta_header_print = args.print_fasta_headers
 keep_files = args.keep_files
-ignore_duplicates = args.ignore_duplicates # lets the user disable termination when multiple sequences with the same fasta ID are found (example: >MZ566623)
+fasta_duplicates_do_not_terminate = args.ignore_duplicates # lets the user disable termination when multiple sequences with the same fasta ID are found (example: >MZ566623)
 #/
 ## Construct input
 # "base" input taxids/taxnames
@@ -504,9 +506,11 @@ for entry in SeqIO.parse(family_fasta_file_path,'fasta'):
         if os.path.exists(fasta_file_name):
             print('WARNING: This fasta file was already written. Sequences are expected to have an unique ID in their headers')
             print(fasta_file_name)
-            print('Apply flag --ignore_duplicates to ignore this warning and proceed, will terminate now.')
-            print('Terminating!')
-            sys.exit()
+            
+            if not fasta_duplicates_do_not_terminate:
+                print('Apply flag --ignore_duplicates to ignore this warning and proceed, will terminate now.')
+                print('Terminating!')
+                sys.exit()
         #/
         # write sequence to file
         with open(fasta_file_name,'w') as nf:
@@ -557,7 +561,7 @@ if not do_not_generate_outgroup:
         #/
     
     if not outgroup_candidate_taxids:
-        print('Did not find any datasets to use as outgroups. Make sure your selection does not include the whole virus family. If this issue still persists, need to lower the "--outgroup_candidates_taxid_min_genomes"')
+        print('Did not find any datasets to use as outgroups. Make sure your selection does not include the whole virus family. If this issue still persists then lower the "--outgroup_candidates_taxid_min_genomes" or set it to 0')
         print('Terminating!')
         sys.exit()
     ##/
@@ -748,10 +752,16 @@ if not do_not_generate_outgroup:
         if test_against_value < groups_comps_stats['S-vs-O']['median']:     test_against_value = groups_comps_stats['S-vs-O']['median'] # however, if that value is very small (indicative of heterogeneous O-datasets), use the median instead.
         #/
         # run test
-        if distance_data['min'][1] > test_against_value:
+        if distance_data['min'][1] >= test_against_value:
             outgroup_candidate_selected = [candidate,distance_data]
             break # break on first
         #/
+    #/
+    # check if any outgroup was determined
+    if outgroup_candidate_selected == None:
+        print('WARNING: Unable to assign an outgroup.')
+        print('Terminating!')
+        sys.exit()
     #/
     # print info
     print('Determined outgroup sample:')
