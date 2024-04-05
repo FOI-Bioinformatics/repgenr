@@ -48,7 +48,7 @@ parser.add_argument('--keep_files',action='store_true',help='If specified, will 
 parser.add_argument('--ignore_duplicates',action='store_true',help='If specified, will prevent termination of the software when faced with multiple identical fasta headers (default: terminate)')
 #/
 # parse input
-if 0 and 'run':
+if 1 and 'run':
     args = parser.parse_args()
 else:
     print('IDE MODE')
