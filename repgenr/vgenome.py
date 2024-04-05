@@ -407,6 +407,12 @@ else:
         print('INFO: Did not find taxid in NCBI "base" metadata for '+str(len(INFO_taxids_without_metadata))+' taxids. Found metadata for '+str(len(INFO_taxids_with_metadata))+' taxids')
         print('If the number of taxids without NCBI "base" metadata is very (>90%) high then this indicates an optimal length-representative for all taxids is not available. You may need to specify a custom range for length using --length_range')
     #/
+    # check if there is any sequence
+    if not lens_statistica:
+        print('WARNING: Could not determine target length. No genomes had tag in fasta header to be included in target length estimate')
+        print('Terminating!')
+        sys.exit()
+    #/
     # determine length-range
     if seq_len_select_all:
         target_len_range = [min(lens_tot),max(lens_tot)]
