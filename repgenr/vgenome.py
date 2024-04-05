@@ -378,10 +378,10 @@ else:
     lens_statistica = [] # store median/mean lengths
     lens_tot = [] # store min/max reported lengths
     for taxid in seqs_selected1:
-        # check if this taxid had no ncbi "base" metadata (not expected)
+        # check if this taxid had no "base" metadata (not expected)
         if not taxid in taxid_metadata_base:
             if 0 and 'verbose':
-                print('INFO: Did not find taxid in NCBI "base" metadata. This is not expected. Taxid: '+str(taxid))
+                print('INFO: Did not find taxid in "base" metadata. This is not expected. Taxid: '+str(taxid))
                 print('Will skip metadata for this taxid and proceed like this did not happen...')
             INFO_taxids_without_metadata.add(taxid)
             continue
@@ -404,8 +404,8 @@ else:
     #/
     # print user info
     if INFO_taxids_without_metadata:
-        print('INFO: Did not find taxid in NCBI "base" metadata for '+str(len(INFO_taxids_without_metadata))+' taxids. Found metadata for '+str(len(INFO_taxids_with_metadata))+' taxids')
-        print('If the number of taxids without NCBI "base" metadata is very (>90%) high then this indicates an optimal length-representative for all taxids is not available. You may need to specify a custom range for length using --length_range')
+        print('INFO: Did not find taxid in "base" metadata for '+str(len(INFO_taxids_without_metadata))+' taxids. Found metadata for '+str(len(INFO_taxids_with_metadata))+' taxids')
+        print('If the number of taxids without "base" metadata is very (>90%) high then this indicates an optimal length-representative for all taxids is not available. You may need to specify a custom range for length using --length_range')
     #/
     # check if there is any sequence
     if not lens_statistica:
