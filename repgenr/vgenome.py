@@ -103,6 +103,13 @@ if input_taxnames:
         input_taxnames.append(entry.rstrip(' ').lstrip(' '))
         #/
 #/
+# length range
+try:
+    seq_len_range = list(map(int,seq_len_range.split('-')))
+except:
+    print('Did not recognize length-range format. Please specify as "start-end", e.g. "1337-7331"')
+    sys.exit()
+#/
 # "NCBI metadata" inputs
 if tax_target_genus:    tax_target_genus = [x.rstrip(' ').strip(' ').lower() for x in tax_target_genus.split(',')]
 if tax_target_species:  tax_target_species = [x.rstrip(' ').strip(' ').lower() for x in tax_target_species.split(',')]
