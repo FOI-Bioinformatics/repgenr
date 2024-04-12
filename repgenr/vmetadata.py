@@ -87,9 +87,18 @@ if not (os.path.exists(download_file_path) and os.path.getsize(download_file_pat
         # define the target file path at ftp (e.g. <ftp_base_url>/viruses/Virus.fna)
         ftp_target_file_path = bvbrc_ftp_file_path+'/'+target_family_capitalized+'.fna'
         #
-        # Get size of file at remote ftp
+        # Get size of file at remote ftp (will also test that the remove file exists, i.e. the user input a valid name)
         ftp_handle.sendcmd('TYPE I') # Set binary mode in ftp_handle to allow for "size"-call (ascii mode does not allow that)
-        remote_file_size = ftp_handle.size(ftp_target_file_path)
+        try:
+            remote_file_size = ftp_handle.size(ftp_target_file_path)
+        except:
+            print('WARNING: Could not get the size of remote file for input '+target_family_capitalized)
+            print('Please make sure that this family exists at BV-BRC!')
+            print('NOTE: some virus families exist in the collection "viruses" at BV-BRC, for example Arenaviridae (as of writing this)')
+            print('You can download these genomes using --target_family viruses')
+            print('Your target family (or lower level lineages) are parsed in the vgenome module')
+            print('Terminating!')
+            sys.exit()
         #/
         # Try to download the file from the ftp
         ftp_handle.sendcmd('TYPE A') # Set ASCII-mode to allow non-binary download for convenient parsing
