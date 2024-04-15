@@ -289,6 +289,26 @@ def get_taxon_data_from_entrez(tax_ids_list,num_ids_per_query=100):
                 #/
                 chunk2 = chunk2_raw.split('<Taxon>')[1] # make sure there is no residue content prior to <Taxon> entry
                 chunk_taxid = chunk2.split('<TaxId>')[1].split('</TaxId>')[0]
+                
+                ## Check if the chunk_taxid has an alternative ID which is favored here.
+                # Check if the chunk_taxid has an alternative ID which is favored here.
+                # Example: I think that samples of Lassa have lineage information where it refers to "Lassa" by its primary taxID: 3052310
+                #          However, in BVBRC the "old" taxid is used, 11620.
+                # So, the idea is to check if "lineage_taxid_from_ncbi" has an alternative ID (variable "taxids_alts") which is also present in the input list of taxids (variable "tax_ids_list")
+                #
+                # UPDATE: This did not fix the issue where bvbrc datasets use multiple aliases for the same organism. Leaving this as unsolved for now, it results in misleading "number of genomes with tag" in metadata files.
+                #
+                
+                # Check if the reported taxid has an alt taxid that exists in the "input tax_ids_list"
+                if 1 and 'reassign aliases':
+                    if chunk_taxid in taxids_alts:
+                        for tmp_taxid in taxids_alts[chunk_taxid]:
+                            if tmp_taxid in set(tax_ids_list):
+                                chunk_taxid = tmp_taxid
+                                break
+                #/
+                ##/
+                
                 chunk_scientific_name = chunk2.split('<ScientificName>')[1].split('</ScientificName>')[0]
                 chunk_tree_level = chunk2.split('<Rank>')[1].split('</Rank>')[0]
                 
