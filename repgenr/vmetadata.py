@@ -9,6 +9,7 @@ from Bio import SeqIO
 from statistics import mean,median
 from time import sleep
 import requests
+from ftplib import FTP
 
 ## Static variables
 # bvbrc ftp details
@@ -19,8 +20,14 @@ bvbrc_ftp_file_path = 'viruses'
 #/
 # used for NCBI metadata: the order in which to present taxonomic names (the last entry should always be "undefined_strain" which is assigned to taxids that do not match at any of NCBI levels)
 taxnames_to_parse_ordered = ['superkingdom','clade','kingdom','phylum','class','order','family','genus','species','serotype','no rank']
+
+# add unidentified strain 
 undefined_strain_identifier = 'undefined_strain'
 taxnames_to_parse_ordered.append(undefined_strain_identifier)
+
+# add "sub"lineages
+for subtaxname_to_parse in ['subphylum','subfamily']:
+    taxnames_to_parse_ordered.append(subtaxname_to_parse)
 #/
 ##/
 
@@ -31,11 +38,10 @@ parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, 
 Retrieve data from BV-BRC for selected taxonomy. Virus-equivalent for "metadata" module
 ''')
 
-parser.add_argument('-wd','--workdir',required=True,help='Path to working directory. This folder will be created if not already present')
-
-parser.add_argument('-tf','--target_family',required=True,help='Target family (Example: adenoviridae)')
-
-parser.add_argument('-f','--filter',required=False,default='complete genome',help='Filter for fasta headers to use when determining sequences to use for length-estimate (default: use sequences with headers containing "complete genome" to determine length)')
+parser.add_argument('-wd','--workdir',required=False,help='Path to working directory. This folder will be created if not already present')
+parser.add_argument('-t','--target',required=False,help='Target group/family (Example: adenoviridae)')
+parser.add_argument('-f','--filter',required=False,default='complete genome',help='Filter for fasta headers to use when determining sequences to use for length-estimate. If viral _segments_ are to be downloaded then this flag may need to be changed to "complete sequence" (default: use sequences with headers containing "complete genome" to determine length)')
+parser.add_argument('-l','--list',required=False,default=None,action='store_true',help='List available targets at remote server and terminate')
 
 #parser.add_argument('-ncbi','--ncbi_metadata',required=False,action='store_true',default=True,help='[REQUIRED AS OF NOW FOR DOWNSTREAM] If specified, will download additional metadata (e.g taxonomic names) from NCBI using Entrez (default: do not download NCBI metadata)')
 
@@ -46,56 +52,86 @@ if 1 and 'run':
     args = parser.parse_args()
 else:
     print('IDE MODE')
-    args = parser.parse_args(['--workdir','IDE_virus',
-                              '--target_family','Adenoviridae',
-                              '--ncbi_metadata'])
+    args = parser.parse_args(['--workdir','IDE_virus4',
+                              '--target','bunyavirales',
+                              '--filter','complete sequence'])
 
-target_family = args.target_family
+target_group = args.target
 
 workdir = args.workdir
 
 filter_require_fasta_match = args.filter
 
+list_ftp_contents = args.list
+
 parse_metadata_from_ncbi = True
 #/
 # validate input
-if not target_family:
-    print('Must supply a family as input using --target_family (e.g., adenoviridae)')
-    sys.exit()
-    
+if not list_ftp_contents:
+    if not target_group:
+        print('Must supply a target as input using --target (e.g., adenoviridae)')
+        sys.exit()
+    if not workdir:
+        print('Must supply a workdir using -wd or --workdir')
+        sys.exit()
 #/
 # Final formatting
-if target_family:           target_family = target_family.lower()
+if target_group:           target_group = target_group.lower()
 #/
 ###/
 
-### Download family fasta
+### Check if user wanted to list the targets of BVBRC
+if list_ftp_contents:
+    print('Will connect to remote server to list available targets...')
+    with FTP(bvbrc_ftp) as ftp_handle:
+        # init ftp
+        ftp_handle.login(user='anonymous', passwd='')
+        #/
+        # go to virus file directory at remote
+        ftp_handle.cwd(bvbrc_ftp_file_path)
+        #/
+        # get files with "fna"
+        files_found = []
+        for file_ in ftp_handle.nlst():
+            if file_.endswith('.fna'):
+                files_found.append(file_.replace('.fna',''))
+        #/
+        # print
+        print('The following targets are available:\n')
+        for file_ in sorted(files_found):
+            print(file_)
+        #/
+        # terminate
+        print('\nTerminating!')
+        sys.exit()
+        #/
+###/
+
+### Download group fasta
 # Init download workdir
 download_workdir = workdir+'/'+'virus_download_wd'
 if not os.path.exists(download_workdir):        os.makedirs(download_workdir)
 #/
-## Download family fasta from bvbrc
-target_family_capitalized = target_family[0].upper()+target_family[1:] # need to capitalize the first letter to match files at bvbrc ftp (e.g. Adenoviridae)
+## Download group fasta from bvbrc
+target_group_capitalized = target_group[0].upper()+target_group[1:] # need to capitalize the first letter to match files at bvbrc ftp (e.g. Adenoviridae)
 download_file_path = download_workdir+'/'+'download.fa'
 if not (os.path.exists(download_file_path) and os.path.getsize(download_file_path) > 0):
     # download using python ftplib
     print('Need to download file from bvbrc, executing download now (using anonymous/anonymous at ftp login)',flush=True)
-    from ftplib import FTP
     with FTP(bvbrc_ftp) as ftp_handle:
         ftp_handle.login(user='anonymous', passwd='')
         
         # define the target file path at ftp (e.g. <ftp_base_url>/viruses/Virus.fna)
-        ftp_target_file_path = bvbrc_ftp_file_path+'/'+target_family_capitalized+'.fna'
+        ftp_target_file_path = bvbrc_ftp_file_path+'/'+target_group_capitalized+'.fna'
         #
         # Get size of file at remote ftp (will also test that the remove file exists, i.e. the user input a valid name)
         ftp_handle.sendcmd('TYPE I') # Set binary mode in ftp_handle to allow for "size"-call (ascii mode does not allow that)
         try:
             remote_file_size = ftp_handle.size(ftp_target_file_path)
         except:
-            print('WARNING: Could not get the size of remote file for input '+target_family_capitalized)
-            print('Please make sure that this family exists at BV-BRC!')
-            print('NOTE: some virus families exist in the collection "viruses" at BV-BRC, for example Arenaviridae (as of writing this)')
-            print('You can download these genomes using --target_family viruses')
+            print('WARNING: Could not get the size of remote file for input '+target_group_capitalized)
+            print('Please make sure that this group exists at BV-BRC!')
+            print('You can try to download the genome files "viruses" using --target viruses')
             print('Your target family (or lower level lineages) are parsed in the vgenome module')
             print('Terminating!')
             sys.exit()
@@ -155,113 +191,172 @@ def get_taxon_data_from_entrez(tax_ids_list,num_ids_per_query=100):
         tax_ids_list = list(tax_ids_list)
     ##/
     
-    ## Split input tax_id_list into lists of size X and submit them as queries to entrez. Accumulate the output of batches to a "non-batched"/"single-input" query.
-    tax_ids_sublists = [tax_ids_list[i:i+num_ids_per_query] for i in range(0, len(tax_ids_list), num_ids_per_query)] # make sublists of size X
-    entrez_response = []
-    for enum,sublist in enumerate(tax_ids_sublists):
-        print('Submitting sublist '+str(enum)+' to Entrez with '+str(len(sublist))+' taxonomy IDs...',flush=True)
-        tmp_entrez_response = send_entrez_query(sublist)
-        entrez_response += tmp_entrez_response
-        sleep(0.5) # Make a short sleep to not be banned from entrez. It is capped at 3 request per second.
-        print('... done!',flush=True)
-    ##/
+    ### Execute entrez parse until all taxids have been attempted. First round will be the input taxids. Following runs will be those taxids that failed to parse, try to parse those again until they fail multiple times.
+    tax_ids_to_parse = [tax_ids_list[5],tax_ids_list[0]]
+    tax_ids_to_parse = tax_ids_list
+    #tax_ids_to_parse = ['483046']
     
-    ## chomp response, grouped by input taxid. Input: lines from response, output: groups as strings of lines
-    # the structure of return is:
-    # <Taxon> # taxid1
-    #      data
-    # </Taxon>
-    # <Taxon> # taxid2
-    #      data
-    # </Taxon>
-    response_grouped = []
-    for line in entrez_response:
-        # skip empty lines
-        if not line: continue
-        #/
-        # check if init new group (intendation is 0 and <Taxon> identifier is present)
-        if line[0] != ' ' and line.find('<Taxon>') != -1:
-            response_grouped.append('')
-        #/
-        # check if row has intendation, then add the content to current group
-        elif line[0] == ' ':
-            response_grouped[-1] += line
-        #/
-    ##/
-    
-    ## for each parsed taxid, get data
     taxids_data = {} # taxid -> entrez data
-    for chunk_raw in response_grouped:
-        # Get content before info about parents etc in "tree of life"
-        chunk = chunk_raw.split('<LineageEx>')[0]
+    taxids_alts = {} # taxid -> alternative IDs
+    number_of_attempts = 3 # number of attempts to get entrez parse upon failure
+    for i in range(number_of_attempts):
+        # Skip round if there are no tax ids to parse (i.e. there was no missing taxids in previous parse)
+        if not tax_ids_to_parse: continue
         #/
-        # Get taxid
-        taxid = chunk.split('<TaxId>')[1].split('</TaxId>')[0]
-        #/
-        # Skip taxid if not part of input. Dont know why we get back something that we didnt request
-        if not taxid in tax_ids_list:
-            print('Got an unexpected taxid in return from Entrez: '+str(taxid)+' Ignoring it...',flush=True)
-            continue
-        #/
-        # Get scientific name
-        scientific_name = chunk.split('<ScientificName>')[1].split('</ScientificName>')[0]
-        #/
-        # Get rank
-        rank = chunk.split('<Rank>')[1].split('</Rank>')[0]
-        #/
-        # IDE: see if there is genome length information
-        if chunk.find('genome') != -1:
-            print('IDE: genome-information found: ')
-            print(chunk)
-        #/
-        # Get info from organisms upstream in tree of life
-        tree_of_life_data = chunk_raw.split('<LineageEx>')[1].split('</LineageEx>')[0]
-        level_data = {} # taxonomic level -> data
-        level_data[rank] = {'taxid':taxid,'name':scientific_name,'level':rank} # If current input taxid is not far down in "tree of life" then save its info. E.g., taxid at family-level only contain info in its tree upstreams, not downstreams.
-        for chunk2_raw in tree_of_life_data.split('</Taxon>'):
-            # check if out of boundaries. expect Taxon-tag to exist
-            if chunk2_raw.find('<Taxon>') == -1: continue
+        ## Split input tax_id_list into lists of size X and submit them as queries to entrez. Accumulate the output of batches to a "non-batched"/"single-input" query.
+        tax_ids_sublists = [tax_ids_to_parse[i:i+num_ids_per_query] for i in range(0, len(tax_ids_to_parse), num_ids_per_query)] # make sublists of size X
+        entrez_response = []
+        for enum,sublist in enumerate(tax_ids_sublists):
+            print('Submitting sublist '+str(enum)+' to Entrez with '+str(len(sublist))+' taxonomy IDs...',flush=True)
+            tmp_entrez_response = send_entrez_query(sublist)
+            entrez_response += tmp_entrez_response
+            sleep(0.5) # Make a short sleep to not be banned from entrez. It is capped at 3 request per second.
+            print('... done!',flush=True)
+        ##/
+        
+        ## chomp response, grouped by input taxid. Input: lines from response, output: groups as strings of lines
+        # the structure of return is:
+        # <Taxon> # taxid1
+        #      data
+        # </Taxon>
+        # <Taxon> # taxid2
+        #      data
+        # </Taxon>
+        response_grouped = []
+        for line in entrez_response:
+            # skip empty lines
+            if not line: continue
             #/
-            chunk2 = chunk2_raw.split('<Taxon>')[1] # make sure there is no residue content prior to <Taxon> entry
-            chunk_taxid = chunk2.split('<TaxId>')[1].split('</TaxId>')[0]
-            chunk_scientific_name = chunk2.split('<ScientificName>')[1].split('</ScientificName>')[0]
-            chunk_tree_level = chunk2.split('<Rank>')[1].split('</Rank>')[0]
-            
-            # bugcheck
-            if chunk_tree_level in level_data and not chunk_tree_level == 'no rank': # for some reason, "no rank" is stated in the tree but no other taxonomic level. So for this rankname we allow duplicate entries
-                print('WARNING: had multiple entries for tree level: '+chunk_tree_level+' taxid: '+taxid)
-                print('... Pretending like this did not happen and moving on the with the latest entry')
+            # check if init new group (intendation is 0 and <Taxon> identifier is present)
+            if line[0] != ' ' and line.find('<Taxon>') != -1:
+                response_grouped.append('')
             #/
-            
-            # print a warning if we do not have this taxonomic level defined in "taxnames_to_parse_ordered" (global variable)
-            if not chunk_tree_level in taxnames_to_parse_ordered:
-                print('WARNING: found a taxonomic level of which the order was not determined: '+chunk_tree_level)
-                print('Current order: '+', '.join(taxnames_to_parse_ordered))
-                print('... Pretending like this did not happen and moving on')
+            # check if row has intendation, then add the content to current group
+            elif line[0] == ' ':
+                response_grouped[-1] += line
             #/
-            # save
-            level_data[chunk_tree_level] = {'taxid':chunk_taxid,'name':chunk_scientific_name,'level':chunk_tree_level}
+        ##/
+        
+        ## for each parsed taxid, get data
+        for enum,chunk_raw in enumerate(response_grouped):
+            # Get content before info about parents etc in "tree of life"
+            chunk = chunk_raw.split('<LineageEx>')[0]
             #/
-        #/
-        # add "None"-entries for taxonomic names that were not present at current taxid
-        for taxname in taxnames_to_parse_ordered:
-            if not taxname in level_data:
-                level_data[taxname] = {'taxid':None,'name':None,'level':None}
-        #/
-        # check if current taxid was assigned at any taxonomic level. if not, then save it at the "undefined_strain_identifier"
-        taxid_found = False
-        for taxlevelname,data in level_data.items():
-            if data['taxid'] != None and data['taxid'] == taxid:
-                taxid_found = True
-                break # break on first occ
-        if not taxid_found:
-            level_data[undefined_strain_identifier] = {'taxid':taxid,'name':scientific_name,'level':undefined_strain_identifier}
-        #/
-        # save to outer
-        taxids_data[taxid] = {'taxid':taxid,'name':scientific_name,'taxdata':level_data}
-        #/
-    ##/
-    ## check if any of input taxids did not get a return
+            # Get taxid and alternative taxids
+            taxid = chunk.split('<TaxId>')[1].split('</TaxId>')[0]
+            taxid_alts = []
+            if chunk_raw.find('<AkaTaxIds>') != -1:
+                for taxid_alt_chunk in chunk_raw.split('<AkaTaxIds>')[1].split('</AkaTaxIds>')[0].split('</TaxId>'):
+                    if taxid_alt_chunk.find('<TaxId>') != -1:
+                        taxid_alt = taxid_alt_chunk.split('<TaxId>')[1]
+                        taxid_alts.append(taxid_alt)
+            #/
+            # save taxid aliases
+            tmp_aliases = [taxid]+taxid_alts
+            for tmp_taxid in tmp_aliases:
+                taxids_alts[tmp_taxid] = tmp_aliases
+            #/
+            # if there is an alternative taxid that matches the query (i.e. the one from bvbrc) then select that one instead of the "primary" taxid parsed from NCBI
+            if not taxid in tax_ids_to_parse:
+                for taxid_alt in taxid_alts:
+                    if taxid_alt in tax_ids_to_parse:
+                        taxid = taxid_alt
+                        break
+            #/
+            # Skip taxid if not part of input. Dont know why we get back something that we didnt request
+            if not taxid in tax_ids_list:
+                print('Got an unexpected taxid in return from Entrez: '+str(taxid)+' Ignoring it...',flush=True)
+                continue
+            #/
+            # Get scientific name
+            scientific_name = chunk.split('<ScientificName>')[1].split('</ScientificName>')[0]
+            #/
+            # Get rank
+            rank = chunk.split('<Rank>')[1].split('</Rank>')[0]
+            #/
+            # IDE: see if there is genome length information
+            if chunk.find('genome') != -1:
+                print('IDE: genome-information found: ')
+                print(chunk)
+            #/
+            # Get info from organisms upstream in tree of life
+            tree_of_life_data = chunk_raw.split('<LineageEx>')[1].split('</LineageEx>')[0]
+            level_data = {} # taxonomic level -> data
+            level_data[rank] = {'taxid':taxid,'name':scientific_name,'level':rank} # If current input taxid is not far down in "tree of life" then save its info. E.g., taxid at group-level only contain info in its tree upstreams, not downstreams.
+            for chunk2_raw in tree_of_life_data.split('</Taxon>'):
+                # check if out of boundaries. expect Taxon-tag to exist
+                if chunk2_raw.find('<Taxon>') == -1: continue
+                #/
+                chunk2 = chunk2_raw.split('<Taxon>')[1] # make sure there is no residue content prior to <Taxon> entry
+                chunk_taxid = chunk2.split('<TaxId>')[1].split('</TaxId>')[0]
+                
+                ## Check if the chunk_taxid has an alternative ID which is favored here.
+                # Check if the chunk_taxid has an alternative ID which is favored here.
+                # Example: I think that samples of Lassa have lineage information where it refers to "Lassa" by its primary taxID: 3052310
+                #          However, in BVBRC the "old" taxid is used, 11620.
+                # So, the idea is to check if "lineage_taxid_from_ncbi" has an alternative ID (variable "taxids_alts") which is also present in the input list of taxids (variable "tax_ids_list")
+                #
+                # UPDATE: This did not fix the issue where bvbrc datasets use multiple aliases for the same organism. Leaving this as unsolved for now, it results in misleading "number of genomes with tag" in metadata files.
+                #
+                
+                # Check if the reported taxid has an alt taxid that exists in the "input tax_ids_list"
+                if 1 and 'reassign aliases':
+                    if chunk_taxid in taxids_alts:
+                        for tmp_taxid in taxids_alts[chunk_taxid]:
+                            if tmp_taxid in set(tax_ids_list):
+                                chunk_taxid = tmp_taxid
+                                break
+                #/
+                ##/
+                
+                chunk_scientific_name = chunk2.split('<ScientificName>')[1].split('</ScientificName>')[0]
+                chunk_tree_level = chunk2.split('<Rank>')[1].split('</Rank>')[0]
+                
+                # bugcheck
+                if chunk_tree_level in level_data and not chunk_tree_level == 'no rank': # for some reason, "no rank" is stated in the tree but no other taxonomic level. So for this rankname we allow duplicate entries
+                    print('WARNING: had multiple entries for tree level: '+chunk_tree_level+' taxid: '+taxid)
+                    print('... Pretending like this did not happen and moving on the with the latest entry')
+                #/
+                
+                # print a warning if we do not have this taxonomic level defined in "taxnames_to_parse_ordered" (global variable)
+                if not chunk_tree_level in taxnames_to_parse_ordered:
+                    print('WARNING: found a taxonomic level of which the order was not determined: '+chunk_tree_level)
+                    print('Current order: '+', '.join(taxnames_to_parse_ordered))
+                    print('... Pretending like this did not happen and moving on')
+                #/
+                # save
+                level_data[chunk_tree_level] = {'taxid':chunk_taxid,'name':chunk_scientific_name,'level':chunk_tree_level}
+                #/
+            #/
+            # add "None"-entries for taxonomic names that were not present at current taxid
+            for taxname in taxnames_to_parse_ordered:
+                if not taxname in level_data:
+                    level_data[taxname] = {'taxid':None,'name':None,'level':None}
+            #/
+            # check if current taxid was assigned at any taxonomic level. if not, then save it at the "undefined_strain_identifier"
+            taxid_found = False
+            for taxlevelname,data in level_data.items():
+                if data['taxid'] != None and data['taxid'] == taxid:
+                    taxid_found = True
+                    break # break on first occ
+            if not taxid_found:
+                level_data[undefined_strain_identifier] = {'taxid':taxid,'name':scientific_name,'level':undefined_strain_identifier}
+            #/
+            # save to outer
+            taxids_data[taxid] = {'taxid':taxid,'name':scientific_name,'taxdata':level_data}
+            #/
+        ##/
+        ## check if any of input taxids did not get a return
+        print('Found '+str(len(taxids_data))+' taxids',flush=True)
+        taxids_missing_data = set(tax_ids_list).difference(set(taxids_data))
+        tax_ids_to_parse = list(taxids_missing_data)
+        if taxids_missing_data:
+            print('INFO: Failed to obtain Entrez-data for '+str(len(taxids_missing_data))+' taxonomy in loop '+str(i))
+            print('Trying again!',flush=True)
+            sleep(1)
+        ##/
+    
+    ## Check which taxids had missing info after retrying to parse
     taxids_missing_data = set(tax_ids_list).difference(set(taxids_data))
     if taxids_missing_data:
         print('WARNING: Failed to obtain Entrez-data for '+str(len(taxids_missing_data))+' taxonomy IDs:')
@@ -273,8 +368,10 @@ def get_taxon_data_from_entrez(tax_ids_list,num_ids_per_query=100):
             for taxname in taxnames_to_parse_ordered: # taxnames_to_parse_ordered is a global variable
                 tmp_taxdata[taxname] = {'taxid':None,'name':None,'level':None}
             taxids_data[taxid] = {'taxid':taxid,'name':None,'taxdata':tmp_taxdata}
+    else:
+        print('Entrez-data parsed successfully',flush=True)
     ##/
-    return taxids_data,taxids_missing_data
+    return taxids_data,taxids_missing_data,taxids_alts
 
 ## REVISE DOCSTRINGS. Filter sequences and output them 1 by 1 (BVBRC-ids are strucutred as <ncbi_tax_id>.<enum>)
 # Get length of all sequences, determine which ones to keep
@@ -337,7 +434,7 @@ print('Mean length: '+str(int(mean(seq_lens.values()))),flush=True)
 #/
 ##/
 
-### Structure metadata for family
+### Structure metadata for group
 ## Generate "BASE" metadata (info available from fasta headers)
 taxid_metadata_base  = {} # taxid -> data
 # init data holder at each taxid
@@ -361,7 +458,7 @@ taxnames_data = {} # taxname -> data {level (e.g. genus), taxid(e.g. adenovirus 
 if parse_metadata_from_ncbi and 'parse from entrez':
     print('Downloading taxonomy metadata from NCBI',flush=True)
     # Get taxdata from ncbi (in function)
-    taxid_metadata_ncbi,taxids_missing_data = get_taxon_data_from_entrez(taxon_ids_all)
+    taxid_metadata_ncbi,taxids_missing_data,taxids_alts = get_taxon_data_from_entrez(taxon_ids_all)
     #/
     # Determine name-variants at each taxnomic level
     taxids_handled = set() # IDE: check which taxids were ever assigned
@@ -378,7 +475,7 @@ if parse_metadata_from_ncbi and 'parse from entrez':
             if taxname != None:
                 taxlevel_taxid = taxlevel_data['taxid']
                 # bugcheck if this taxname as already added but does not have the same taxid as before. This is not expected...
-                if taxname in taxnames_data and taxnames_data[taxname]['taxid'] != taxlevel_taxid:
+                if (taxname in taxnames_data) and (taxlevel_taxid != taxnames_data[taxname]['taxid']) and not (taxnames_data[taxname]['taxid'] in taxids_alts[taxlevel_taxid]):
                     print('FATAL: Already saved a taxid to this taxname and taxlevel. The new value does not match the previous!')
                     print('Previous value:'+ taxname+'='+str(taxnames_data[taxname]['taxid']))
                     print('New value:'+ taxname+'='+str(taxlevel_taxid))
@@ -476,6 +573,7 @@ if parse_metadata_from_ncbi:
             ##/
         #/
 ##/
+
 ## Output metadata-summary table: Columns per each taxlevel with 2 sub-columns: (1) taxlevelname (2) number of datasets with taxname
 if parse_metadata_from_ncbi and 'parse from entrez':
     print('Generating output: metadata_ncbi_summary.tsv',flush=True)
