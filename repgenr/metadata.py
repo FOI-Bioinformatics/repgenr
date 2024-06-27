@@ -5,6 +5,8 @@ import sys
 import urllib.request
 import tarfile
 import argparse
+import gzip
+import shutil
 from matplotlib import pyplot as plt
 
 taxonomy_ordered = ('domain','phylum','class','family','genus','species')
@@ -102,21 +104,34 @@ if target_species:          target_species = target_species.lower()
 print('Downloading metadata-file from GTDB...',flush=True)
 if not os.path.exists(workdir):     os.makedirs(workdir)
 
-metadata_target = 'https://data.gtdb.ecogenomic.org/releases/release'+str(int(gtdb_release))+'/'+str(gtdb_release)+'/'+gtdb_version+'_metadata_r'+str(int(gtdb_release))+'.tar.gz'
-metadata_file = os.path.basename(metadata_target)
-try:
-    if not nodownload and not metadata_path:
-        urllib.request.urlretrieve(metadata_target, workdir+'/'+metadata_file)
-    else:
-        if nodownload:
-            print(' ^ Will use previously downloaded database, flag --nodownload specified',flush=True)
-        elif metadata_path:
-            print(' ^ Will use previously downloaded database: '+metadata_path,flush=True)
-except:
-    print('Could not fetch metadata from:')
-    print(metadata_target)
-    print('Make sure that the release version, database version, and dataset version exists.')
+metadata_target1 = 'https://data.gtdb.ecogenomic.org/releases/release'+str(int(gtdb_release))+'/'+str(gtdb_release)+'/'+gtdb_version+'_metadata_r'+str(int(gtdb_release))+'.tar.gz' # in older versions, this is the path (.tar.gz)
+metadata_target2 = 'https://data.gtdb.ecogenomic.org/releases/release'+str(int(gtdb_release))+'/'+str(gtdb_release)+'/'+gtdb_version+'_metadata_r'+str(int(gtdb_release))+'.tsv.gz' # in newer versions, this is the path (.tsv.gz)
+for metadata_target in (metadata_target1,metadata_target2,):
+    metadata_file = os.path.basename(metadata_target)
+    metadata_file_saveLocation = workdir+'/'+metadata_file
+    try:
+        if not nodownload and not metadata_path:
+            urllib.request.urlretrieve(metadata_target, metadata_file_saveLocation)
+        else:
+            if nodownload and os.path.exists(metadata_file_saveLocation):
+                print(' ^ Will use previously downloaded database, flag --nodownload specified',flush=True)
+            elif metadata_path and os.path.exists(metadata_path):
+                print(' ^ Will use previously downloaded database: '+metadata_path,flush=True)
+        
+        if os.path.exists(metadata_file_saveLocation): # break on first target that exists
+            break
+        
+    except:
+        print('Could not fetch metadata from:')
+        print(metadata_target)
+        print('Make sure that the release version, database version, and dataset version exists.',flush=True)
+        print('Will try next download target...',flush=True)
+        continue
+
+if not os.path.exists(workdir+'/'+metadata_file):
+    print('No download made, termiating!',flush=True)
     sys.exit()
+print('Metadata-file used: '+metadata_file,flush=True)
 ###/
 
 ### Read GTDB database
@@ -127,20 +142,41 @@ if metadata_path:
     gtdb_metadata_path = metadata_path
 else: # else, set to downloaded file
     gtdb_metadata_path = workdir+'/'+metadata_file
-#/ 
+#/
 
-fo_tar = tarfile.open(gtdb_metadata_path)
-accessions_data = {}
-for content in fo_tar.getmembers():
-    content_handle = fo_tar.extractfile(content)
-
-    # We expect a .tsv file    
-    #if content_handle.name.find('.tsv') == -1: continue
+# Pre: check if .tar.gz file was downloaded: Unpack tsv from tar file
+if gtdb_metadata_path.endswith('.tar.gz'):
+    print('Unpacking TSV from tarball',flush=True)
+    new_gtdb_metadata_path = gtdb_metadata_path.replace('.tar.gz','.tsv.gz')
+    with tarfile.open(gtdb_metadata_path) as fo_tar:
+        for enum,content in enumerate(fo_tar.getmembers()):
+            if content.name.endswith('.tsv'):
+                # Extract the target file to a temporary location (it will be e.g. at "tmp.metadata/bac120_metadata_r214.tsv")
+                tmp_file_path = workdir+'/'+'tmp.metadata'
+                fo_tar.extract(content, path=tmp_file_path)
+                #/
+                # Write file from tmp-folder to workdir-folder as gzipped tsv
+                for file_ in os.listdir(tmp_file_path):
+                    with open(tmp_file_path+'/'+file_,'rb') as fo:
+                        with gzip.open(new_gtdb_metadata_path,'wb') as nf:
+                            shutil.copyfileobj(fo,nf)
+                #/
+                # remove tmpdir
+                shutil.rmtree(tmp_file_path)
+                #/
+                # break on first file (only one .tsv expected inside the .tar.gz tarball)
+                break
+                #/
+    # overwrite .tar.gz path with .tsv.gz path
+    gtdb_metadata_path = new_gtdb_metadata_path
     #/
-    
-    header = None
-    for enum_file,line_raw in enumerate(content_handle):
-        line = line_raw.decode('utf-8')
+#/
+
+accessions_data = {}
+header = None
+with gzip.open(gtdb_metadata_path,'rt') as fo:
+    for enum_file,line in enumerate(fo):
+        #line = line_raw.decode('utf-8')
         line = line.strip('\n')
         line = line.split('\t')
         # parse header
@@ -223,7 +259,7 @@ for content in fo_tar.getmembers():
                 if entry != 'none':
                     strain_ID_ncbi = entry
             #/
-  
+      
         # bugcheck if we have multiple entries for accession
         if accession in accessions_data:
             print('Found another entry for accession?! I expect only one ',accession)
@@ -251,7 +287,6 @@ for content in fo_tar.getmembers():
         accessions_data[accession] = save_data
         #/
         ##/
-fo_tar.close()
 
 # check if accessions are always GCA/GCF
 accessions_prefixes = set()
