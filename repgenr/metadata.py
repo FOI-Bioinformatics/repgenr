@@ -117,6 +117,7 @@ for metadata_target in (metadata_target1,metadata_target2,):
                 print(' ^ Will use previously downloaded database, flag --nodownload specified',flush=True)
             elif metadata_path and os.path.exists(metadata_path):
                 print(' ^ Will use previously downloaded database: '+metadata_path,flush=True)
+                break
         
         if os.path.exists(metadata_file_saveLocation): # break on first target that exists
             break
@@ -128,15 +129,6 @@ for metadata_target in (metadata_target1,metadata_target2,):
         print('Will try next download target...',flush=True)
         continue
 
-if not os.path.exists(workdir+'/'+metadata_file):
-    print('No download made, termiating!',flush=True)
-    sys.exit()
-print('Metadata-file used: '+metadata_file,flush=True)
-###/
-
-### Read GTDB database
-print('Parsing metadata-file...',flush=True)
-
 # check if user provided a path to metadata file
 if metadata_path:
     gtdb_metadata_path = metadata_path
@@ -144,6 +136,13 @@ else: # else, set to downloaded file
     gtdb_metadata_path = workdir+'/'+metadata_file
 #/
 
+if not gtdb_metadata_path:
+    print('No download made, termiating!',flush=True)
+    sys.exit()
+print('Metadata-file used: '+gtdb_metadata_path,flush=True)
+###/
+
+### Read GTDB database
 # Pre: check if .tar.gz file was downloaded: Unpack tsv from tar file
 if gtdb_metadata_path.endswith('.tar.gz'):
     print('Unpacking TSV from tarball',flush=True)
@@ -172,6 +171,7 @@ if gtdb_metadata_path.endswith('.tar.gz'):
     #/
 #/
 
+print('Parsing metadata-file...',flush=True)
 accessions_data = {}
 header = None
 with gzip.open(gtdb_metadata_path,'rt') as fo:
