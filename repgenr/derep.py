@@ -26,7 +26,7 @@ parser.add_argument('--pre_secondary_ani',default=None,help='On dataset chunks, 
 parser.add_argument('--pre_primary_ani',default=None,help='On dataset chunks, ANI threshold for clustering in second stage of dRep. Only applied if -s/--process_size is >1 (default: same as -pani)')
 parser.add_argument('--S_algorithm',default='fastANI',help='Algorithm to use in dRep fastANI. Possible values as of dRep v3.4.1: fastANI,gANI,goANI,ANIn,ANImf (default: fastANI)')
 parser.add_argument('-t','--threads',type=int,default=16,help='Number of total threads to use (default: 16)')
-parser.add_argument('-p','--num_processes',type=int,default=1,help='Number of processes to execute in parallel\nMust be paired with -s/--process_size to split a large dataset into multiple batches that are processed separately.\In a second round, the dereplicated output of batches are subjected to dRep (default: 1)')
+parser.add_argument('-p','--num_processes',type=int,default=1,help='Number of processes to execute in parallel\nMust be paired with -s/--process_size to split a large dataset into multiple batches that are processed separately.\nIn a second round, the dereplicated output of batches are subjected to dRep (default: 1)')
 parser.add_argument('-s','--process_size',type=int,default=False,help='Number of genomes per process. Lower values increase speed (default: full dataset, i.e. no dataset splitting)')
 parser.add_argument('--keep_files',action='store_true',help='If specified, will save intermediary files')
 parser.add_argument('--skip_intermediary',action='store_true',help='If specified, will not attempt to recycle intermediary files from dRep')
