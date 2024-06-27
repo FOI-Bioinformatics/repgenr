@@ -199,21 +199,11 @@ with gzip.open(gtdb_metadata_path,'rt') as fo:
                         pre_outgroup_accession_found = True
         #/
         
-        # Check if this accession (col 0) is a representative in GTDB (col 14)
-        is_gtdb_rep = False
-        if line[0] == line[14]:
-            is_gtdb_rep = True
-            
-        if gtdb_dataset == 'rep' and not pre_outgroup_accession_found:
-            ## NOTE: With version 207.0 I get 62291 genomes.
-            ##       It seems 62291 genomes is correct, as stated here "Unfortunately, ML placement with pplacer is a memory intensive operation requiring 25 ~320 GB of RAM when using the GTDB R07-RS207 bacterial reference tree comprised of 62,291 genomes" (https://www.biorxiv.org/content/10.1101/2022.07.11.499641v1.full.pdf)
-            if not is_gtdb_rep: continue
-        #/
-        
         accession = None
+        accession_raw = None
         accession_ncbi = None
         tax_ncbi_unfiltered = None # raw string from gtdb
-        
+        gtdb_representative_accession = None # put the representative accession for current accession
         tax_gtdb = {}
         tax_ncbi = {}
         for tax in taxonomy_ordered:
@@ -227,6 +217,7 @@ with gzip.open(gtdb_metadata_path,'rt') as fo:
             # parse accession
             if column == 'accession':
                 accession = entry.replace('GB_','').replace('RS_','')
+                accession_raw = entry
             if column == 'ncbi_genbank_assembly_accession':
                 accession_ncbi = entry
             #/
@@ -259,6 +250,21 @@ with gzip.open(gtdb_metadata_path,'rt') as fo:
                 if entry != 'none':
                     strain_ID_ncbi = entry
             #/
+            # parse representative
+            if column == 'gtdb_genome_representative':
+                gtdb_representative_accession = entry
+            #/
+        
+        # Check if this accession is the representative
+        is_gtdb_rep = False
+        if accession_raw == gtdb_representative_accession :
+            is_gtdb_rep = True
+            
+        if gtdb_dataset == 'rep' and not pre_outgroup_accession_found:
+            ## NOTE: With version 207.0 I get 62291 genomes.
+            ##       It seems 62291 genomes is correct, as stated here "Unfortunately, ML placement with pplacer is a memory intensive operation requiring 25 ~320 GB of RAM when using the GTDB R07-RS207 bacterial reference tree comprised of 62,291 genomes" (https://www.biorxiv.org/content/10.1101/2022.07.11.499641v1.full.pdf)
+            if not is_gtdb_rep: continue
+        #/
       
         # bugcheck if we have multiple entries for accession
         if accession in accessions_data:
