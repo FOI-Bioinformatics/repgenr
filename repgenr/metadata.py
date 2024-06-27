@@ -400,6 +400,11 @@ else:
             #/
     #/
 ##/
+## Return error if no outgroup was assigned
+if len(tax_level_upper_accessions) == 0:
+    print('Was unable to determine an outgroup. You may need to manually specify an outgroup, see --help')
+    sys.exit('Terminating!')
+##/
 ###/
 
 ### Summarize selected metadata
