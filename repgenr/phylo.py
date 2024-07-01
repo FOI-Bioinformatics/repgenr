@@ -27,6 +27,7 @@ parser.add_argument('--halt_after_msa',action='store_true',help='If specified, w
 parser.add_argument('--keep_msa',action='store_true',help='If specified, will save multiple sequence alignment file "msa_[derep/all].fasta" (accurate-mode only)')
 parser.add_argument('--keep_files',action='store_true',help='If specified, will save intermediary files (accurate-mode only)')
 parser.add_argument('--progressivemauve_ref',required=False,default=None,help='Accurate mode only. Specify file-name including extension of reference to use during progressivemauve (default: use first genome file in directory)')
+parser.add_argument('--progressivemauve_single',action='store_true',help='If specified, will not parallelize progressivemauve. Sometimes this leads to a yet unknown error. Running one process at a time has solved the issue.')
 #/
 # parse input
 args = parser.parse_args()
@@ -45,6 +46,7 @@ keep_msa = args.keep_msa
 keep_files = args.keep_files
 
 pmauve_ref = args.progressivemauve_ref
+progressivemauve_single = args.progressivemauve_single
 #/
 ## validate input
 # check dirs
@@ -180,8 +182,8 @@ if run_mode == 'accurate':
         if print_status:            print(print_status + ' started...')
         
         query_name = os.path.splitext(query_path.split('/')[-1])[0]
-        query_xmfa_out = output_path+'/'+query_name+'.xmfa'
-        query_fa_out = output_path+'/'+query_name+'.fa'
+        query_xmfa_out = output_path+'/'+query_name+'.xmfa' #pmaouve output
+        query_fa_out = output_path+'/'+query_name+'.fa' #x2fa output
         
         # Run progressiveMauve
         print('\nExecuting progressiveMauve')
@@ -211,7 +213,12 @@ if run_mode == 'accurate':
     print('Processing genomes (number of parallel processes is '+str(num_threads)+ ' at '+str(1)+' threads each)') # progressiveMauve runs single-threaded
     #/
     # start jobs
-    pool = Pool(processes=num_threads)
+    if progressivemauve_single:
+        print('Argument --progressivemauve_single applied, will not parallelize progressivemauve')
+        pool = Pool(processes=1)
+    else:
+        pool = Pool(processes=num_threads)
+    
     jobs = {}
     for enum,genome_file in enumerate(os.listdir(pmauve_genomes_dir)):
         if genome_file == pmauve_ref: continue # skip self-alignment of reference
