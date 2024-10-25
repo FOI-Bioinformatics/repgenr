@@ -21,6 +21,7 @@ Download and organize genomes from "metadata" module
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory, created by metadata-command')
 parser.add_argument('--accession_list_only',action='store_true',help='If specified, will output NCBI download accession list and then terminate')
 parser.add_argument('--keep_files',action='store_true',help='If specified, will save intermediary files')
+parser.add_argument('--copy',action='store_true',help='If specified, will copy sequence files from NCBI download instead of moving them (default: move)')
 #/
 # parse input
 args = parser.parse_args()
@@ -28,6 +29,7 @@ args = parser.parse_args()
 workdir = args.workdir
 halt_after_accession_list = args.accession_list_only
 keep_files = args.keep_files
+copy_instead_of_move = args.copy
 #/
 # validate input
 if not os.path.exists(workdir):
@@ -92,13 +94,16 @@ if os.path.exists(workdir+'/'+'genomes'):
 
 ## Get accessions that have not been downloaded yet
 accessions_to_download = []
+accessions_already_downloaded = []
 for acc,data in accessions.items():
     # check if we already downloaded this genome accession (and that file is not empty)
     acc_genome_file = format_acc_output_file(data)
     if not os.path.exists(workdir+'/'+'genomes'+'/'+acc_genome_file) or os.path.getsize(workdir+'/'+'genomes'+'/'+acc_genome_file) == 0:
         accessions_to_download.append(acc)
+    else:
+        accessions_already_downloaded.append(acc)
     #/
-print('Will try to download '+str(len(accessions_to_download))+' genomes...')
+print(f'Will try to download {len(accessions_to_download)} genomes. There is {len(accessions_already_downloaded)} genomes that are already downloaded to the "genomes" folder')
 ##/
 
 ## Dump list of accessions for "ncbi datasets" software
@@ -117,6 +122,7 @@ def ncbi_downloader(ncbi_datasets_cmd):
     #
     
     prev_write_timestamp = None
+    collection_lines_tracker = set() # store linewrites of "Collecting X records..." it overwrites the download progress update
     rows_100_perc_written = set()
     try:
         # print execution start
@@ -130,9 +136,13 @@ def ncbi_downloader(ncbi_datasets_cmd):
             if not line: continue
             
             # write status update lines
-            if (prev_write_timestamp == None) or (time.time() - prev_write_timestamp >= 5) or (line.find('100%') != -1): #only print once every X:th second (log gets clogged otherwise) but allow "finish/100%"-line
-                # update print-timestamp
-                prev_write_timestamp = time.time()
+            timenow = int(time.time())
+            if ((prev_write_timestamp == None) or (timenow - prev_write_timestamp >= 5) or (line.find('100%') != -1)) and not timenow == prev_write_timestamp and not line in collection_lines_tracker: #only print once every X:th second (log gets clogged otherwise) but allow "finish/100%"-line
+                # update print-timestamp and written line
+                prev_write_timestamp = timenow
+                
+                if line.find('Collecting') != -1 and line.find('records') != -1:
+                    collection_lines_tracker.add(line)
                 #/
                 # check if "finish/100%"-line and if it was already printed
                 if line.find('100%') != -1:
@@ -146,7 +156,7 @@ def ncbi_downloader(ncbi_datasets_cmd):
                     if line in rows_100_perc_written: continue # skip if already printed
                     rows_100_perc_written.add(line) # add to memory so it is not printed again
                 #/
-                if line.startswith('Downloading') or (line.find('Collecting') != -1 and line.find('records') != -1):
+                if line.find('Downloading:') != -1 or (line.find('Collecting') != -1 and line.find('records') != -1):
                     print('[NCBI-DATASETS] ' + line,flush=True)
                     pass # I was going to do something else here. For now, all lines are printed
                 else:
@@ -180,58 +190,67 @@ def ncbi_downloader(ncbi_datasets_cmd):
 
 print('Running NCBI-DATASETS software (download genomes)',flush=True)
 if accessions_to_download:
+    # Download dehydrated zip
+    print('Downloading dehydrated dataset from NCBI...',flush=True)
     ncbi_datasets_cmd = ['datasets','download','genome','accession',
+                         '--dehydrated',
                          '--inputfile',workdir+'/'+'ncbi_acc_download_list.txt',
                          '--filename',workdir+'/'+'ncbi_download.zip']
     
     ncbi_downloader(ncbi_datasets_cmd)
+    #/
+    # unpack zip (remove previous unpack if it exists so it does not conflict with the current ont)
+    print('Unpacking dehydrated download...',flush=True)
+    if os.path.exists(workdir+'/'+'ncbi_extract'):
+        print('A previous directory of ncbi_extract was found, will remove it before proceeding',flush=True)
+        shutil.rmtree(workdir+'/'+'ncbi_extract')
     
-    ## Unpack genomes from downloaded zip (into formatted gzipped files)
-    print('Unpacking genomes from NCBI download into "genomes"-folder...',flush=True)
-    try:
-        with zipfile.ZipFile(workdir+'/'+'ncbi_download.zip','r') as zip_fo:
-            if not os.path.exists(workdir+'/'+'genomes'):        os.makedirs(workdir+'/'+'genomes')
-            try:
-                zip_fo.extractall(workdir+'/'+'ncbi_extract')
-            except:
-                print('ZIP extractall failed. Possibly, it is due to a corrupted download from NCBI. Try re-running or else raise an issue. Terminating!')
-                sys.exit()
-            
-            # subdir will be at ../ncbi_extract/ncbi_dataset/data/GCx_XXXXXX in extracted folder
-            for path,dirnames,filenames in os.walk(workdir+'/'+'ncbi_extract'):
-                for dirname in dirnames:
-                    if dirname in accessions:
-                        # Get file from directory
-                        genome_fa_path = None
-                        for file_ in os.listdir(path+'/'+dirname):
-                            if file_.endswith('.fna'):
-                                genome_fa_path = path+'/'+dirname+'/'+file_
-                                break
-                        
-                        if not genome_fa_path:
-                            print('Could not locate genome fasta for downloaded accession: '+dirname,flush=True)
-                        
-                        # copy genome file to genomes folder
-                        try:
-                            acc_genome_file = format_acc_output_file(accessions[dirname])
-                            genome_fa_target_path = workdir+'/'+'genomes'+'/'+acc_genome_file
-                            shutil.copy(genome_fa_path,genome_fa_target_path)
-                        except:
-                            print('Error moving files from "ncbi_extract" to "genomes". This should not happen and unless explained by a full disk or permissions should be reported to a maintainer. Terminating!')
-                            sys.exit()
-                        #/
-    except zipfile.BadZipFile:
-        print('ZIP-file from NCBI download appears to be corrupted - was the connection interrupted? Try re-running this module to see if network issues persist.')
-        sys.exit()
-    except FileNotFoundError:
-        print('ZIP-file from NCBI download was not found - was the connection interrupted? Try re-running this module to see if network issues persist.')
-        sys.exit()
-    except Exception as e:
-        print('Unknown error:')
-        print(e)
-        print('Terminating!')
-        sys.exit()
-    ##/
+    unzip_cmd = ['unzip',
+                 workdir+'/'+'ncbi_download.zip',
+                 '-d',workdir+'/'+'ncbi_extract']
+    
+    subprocess.call(' '.join(map(str,unzip_cmd)),shell=True)
+    #/
+    # Rehydrate download
+    print('Downloading dataset sequences (rehydrating download)...',flush=True)
+    ncbi_datasets_rehydrate_cmd = ['datasets','rehydrate',
+                                   '--directory',workdir+'/'+'ncbi_extract']
+    
+    ncbi_downloader(ncbi_datasets_rehydrate_cmd)
+    #/
+    # Move-out sequence files from rehydrated download
+    print('Unpacking sequences into genomes folder...',flush=True)
+    if not os.path.exists(workdir+'/'+'genomes'):        os.makedirs(workdir+'/'+'genomes')
+    for path,dirnames,filenames in os.walk(workdir+'/'+'ncbi_extract'):
+        for dirname in dirnames:
+            if dirname in accessions:
+                # Get file from directory
+                genome_fa_path = None
+                for file_ in os.listdir(path+'/'+dirname):
+                    if file_.endswith('.fna'):
+                        genome_fa_path = path+'/'+dirname+'/'+file_
+                        break
+                
+                if not genome_fa_path:
+                    print('Could not locate genome fasta for downloaded accession: '+dirname,flush=True)
+                
+                # copy genome file to genomes folder
+                try:
+                    acc_genome_file = format_acc_output_file(accessions[dirname])
+                    genome_fa_target_path = workdir+'/'+'genomes'+'/'+acc_genome_file
+                    
+                    # move or, if user specified it, copy file
+                    if not copy_instead_of_move:
+                        shutil.move(genome_fa_path,genome_fa_target_path)
+                    else:
+                        shutil.copy(genome_fa_path,genome_fa_target_path)
+                    #/
+                    
+                except Exception as e:
+                    print(e)
+                    print('Error moving files from "ncbi_extract" to "genomes". This should not happen and unless explained by a full disk or permissions should be reported to a maintainer. Terminating!')
+                    sys.exit()
+    #/
     # remove ZIP file
     if not keep_files:
         print('Cleaning workspace...',flush=True)

@@ -27,7 +27,7 @@ parser.add_argument('--halt_after_msa',action='store_true',help='If specified, w
 parser.add_argument('--keep_msa',action='store_true',help='If specified, will save multiple sequence alignment file "msa_[derep/all].fasta" (accurate-mode only)')
 parser.add_argument('--keep_files',action='store_true',help='If specified, will save intermediary files (accurate-mode only)')
 parser.add_argument('--progressivemauve_ref',required=False,default=None,help='Accurate mode only. Specify file-name including extension of reference to use during progressivemauve (default: use first genome file in directory)')
-parser.add_argument('--progressivemauve_single',action='store_true',help='If specified, will not parallelize progressivemauve. Sometimes this leads to a yet unknown error. Running one process at a time has solved the issue.')
+parser.add_argument('--progressivemauve_single',action='store_true',help='If specified, will not parallelize progressivemauve. Sometimes this leads to a yet unknown error. Running one process at a time has solved the issue')
 #/
 # parse input
 args = parser.parse_args()
