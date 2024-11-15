@@ -46,12 +46,12 @@ if not os.path.exists(workdir+'/'+'outgroup_accession.txt'):
 ## selected accessions metadata
 try:
     print('Parsing metadata...')
-    with open(workdir+'/'+'metadata_selected.tsv','r') as f:
+    with open(workdir+'/'+'metadata_selected.dict','r') as f:
         line = f.readline()
         accessions = ast.literal_eval(line)
 except:
     print('Could not read metadata at location:')
-    print(workdir+'/'+'metadata_selected.tsv')
+    print(workdir+'/'+'metadata_selected.dict')
     print('Have you run the metadata-command?')
     sys.exit()
 ##/

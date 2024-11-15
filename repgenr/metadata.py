@@ -464,9 +464,51 @@ plt.savefig(workdir+'/'+'metadata_summary_number_per_level.png',dpi=200)
 #/
 ##/
 
-## Metadata for selected accessions
-with open(workdir+'/'+'metadata_selected.tsv','w') as nf:
+## Metadata for selected accessions (for downstream repgenr modules and human readable)
+# for internal modules
+with open(workdir+'/'+'metadata_selected.dict','w') as nf:
     nf.write(str(accessions_selected))
+#/
+# human readable
+with open(workdir+'/'+'metadata_selected.tsv','w') as nf:
+    # write header
+    header = ['accession','accession_ncbi','gtdb_taxonomy_levels','gtdb_taxonomy_names','ncbi_taxonomy_levels','ncbi_taxonomy_names','ncbi_tax_raw','strain_ID_ncbi','is_representative']
+    nf.write('\t'.join(map(str,header))+'\n')
+    #/
+    # write rows
+    for accession,data in accessions_selected.items():
+        writeArr = [accession]
+        
+        writeArr.append(data['accession_ncbi'])
+        
+        # add gtdb_taxonomy
+        tmp_gtdb_taxlevels = []
+        tmp_gtdb_taxnames = []
+        for taxlevel,taxname in data['tax_gtdb'].items():
+            tmp_gtdb_taxlevels.append(taxlevel)
+            tmp_gtdb_taxnames.append(taxname)
+        writeArr.append(','.join(tmp_gtdb_taxlevels))
+        writeArr.append(','.join(tmp_gtdb_taxnames))
+        #/
+        # add ncbi_taxonomy
+        tmp_ncbi_taxlevels = []
+        tmp_ncbi_taxnames = []
+        for taxlevel,taxname in data['tax_ncbi'].items():
+            tmp_ncbi_taxlevels.append(taxlevel)
+            tmp_ncbi_taxnames.append(taxname)
+        writeArr.append(','.join(tmp_ncbi_taxlevels))
+        writeArr.append(','.join(tmp_ncbi_taxnames))
+        #/
+        
+        writeArr.append(data['tax_ncbi_unfiltered'])
+        writeArr.append(data['strain_ID_ncbi'])
+        writeArr.append(str(data['is_rep']))
+        
+        # write
+        nf.write('\t'.join(map(str,writeArr))+'\n')
+        #/
+    #/
+#/
 ##/
 ## Output level
 with open(workdir+'/'+'metadata_level.txt','w') as nf:
