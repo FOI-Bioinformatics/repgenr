@@ -147,7 +147,7 @@ if run_mode == 'accurate':
                 outgroup_file = file_
         #/
         # Print info
-        print('Using '+outgroup_file+' as outgroup')
+        print('Using '+outgroup_file+' as outgroup',flush=True)
         #/
         # Add outgroup to genome-list
         pmauve_genome_list.append(workdir+'/'+'outgroup'+'/'+outgroup_file)
@@ -160,7 +160,7 @@ if run_mode == 'accurate':
         sys.exit()
     #/
     # soft-link genomes
-    print('Soft-linking genomes...')
+    print('Soft-linking genomes...',flush=True)
     pmauve_genomes_dir = phylo_wd+'/'+'pmauve_genomes'
     os.makedirs(pmauve_genomes_dir)
     
@@ -186,7 +186,7 @@ if run_mode == 'accurate':
         query_fa_out = output_path+'/'+query_name+'.fa' #x2fa output
         
         # Run progressiveMauve
-        print('\nExecuting progressiveMauve')
+        print('\nExecuting progressiveMauve',flush=True)
         pmauve_cmd = ['progressiveMauve','--output',query_xmfa_out,reference_path,query_path]
         subprocess.call(' '.join(map(str,pmauve_cmd)),shell=True)
         #/
@@ -204,17 +204,17 @@ if run_mode == 'accurate':
         if os.path.exists(query_fa_out) and os.path.getsize(query_fa_out) > 0:
             pmauve_has_output = True
         #/
-        if print_status:            print(print_status + ' finished!')
+        if print_status:            print(print_status + ' finished!',flush=True)
         return pmauve_has_output
     #/
     # setup multiprocessing
     pmauve_outdir = phylo_wd+'/'+'progressivemauve'
     os.makedirs(pmauve_outdir)
-    print('Processing genomes (number of parallel processes is '+str(num_threads)+ ' at '+str(1)+' threads each)') # progressiveMauve runs single-threaded
+    print('Processing genomes (number of parallel processes is '+str(num_threads)+ ' at '+str(1)+' threads each)',flush=True) # progressiveMauve runs single-threaded
     #/
     # start jobs
     if progressivemauve_single:
-        print('Argument --progressivemauve_single applied, will not parallelize progressivemauve')
+        print('Argument --progressivemauve_single applied, will not parallelize progressivemauve',flush=True)
         pool = Pool(processes=1)
     else:
         pool = Pool(processes=num_threads)
@@ -234,7 +234,7 @@ if run_mode == 'accurate':
     for chunk_wd,job in jobs.items():
         jobs_status[chunk_wd] = job.get()
 
-    print('\tProcessing done!')
+    print('\tProcessing done!',flush=True)
     
     if not all(list(jobs_status.values())):
         print('Some jobs failed. Terminating.')
@@ -242,7 +242,7 @@ if run_mode == 'accurate':
     #/
     ##/
     ### Concatenate single-alignment-fasta to multi-alignment-fasta and fix fasta-headers
-    print('Concatenating alignment-fasta files to MSA-fasta...')
+    print('Concatenating alignment-fasta files to MSA-fasta...',flush=True)
     ref_written = False
     write_line = True
     with open(phylo_wd+'/'+'msa.fasta','w') as nf:
@@ -336,7 +336,7 @@ if run_mode == 'fast':
                 outgroup_file = file_
         #/
         # Print info
-        print('Using '+outgroup_file+' as outgroup')
+        print('Using '+outgroup_file+' as outgroup',flush=True)
         #/
         # Do the copy-in
         cmd_cp = ['cp',workdir+'/outgroup/'+outgroup_file,genome_files_dir]
