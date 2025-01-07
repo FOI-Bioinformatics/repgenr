@@ -61,7 +61,7 @@ if include_dereplicated and not os.path.exists(workdir+'/'+'derep_genomes_summar
 ### Parse selected accessions metadata
 try:
     print('Parsing metadata...')
-    with open(workdir+'/'+'metadata_selected.tsv','r') as f:
+    with open(workdir+'/'+'metadata_selected.dict','r') as f:
         line = f.readline()
         accessions = ast.literal_eval(line)
 except:
