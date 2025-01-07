@@ -21,6 +21,7 @@ parser.add_argument('--node_basename',default=None,help='Input a basename of nod
 parser.add_argument('-r','--root_name',default=None,nargs='+',help='Specify the root name in output relations')
 parser.add_argument('--remove_outgroup',help='If specified, will remove the outgroup sample from output relations',action='store_true')
 parser.add_argument('--all_genomes',action='store_true',help='If specified, will run on all genomes and not on de-replicated genomes')
+parser.add_argument('--include_dereplicated',action='store_true',help='If specified, will output relations for dereplicated genomes')
 #/
 # parse input
 args = parser.parse_args()
@@ -32,6 +33,8 @@ if args.root_name:      root_name = ' '.join(args.root_name).replace('"','')
 
 remove_outgroup = args.remove_outgroup
 run_on_all_genomes = args.all_genomes
+
+include_dereplicated = args.include_dereplicated
 #/
 # validate input
 if not os.path.exists(workdir):
@@ -49,13 +52,16 @@ if run_on_all_genomes and not os.path.exists(workdir+'/'+'genomes.dnd') and not 
 if not os.path.exists(workdir+'/'+'outgroup_accession.txt'):
     print('Could not locate file outgroup_accession.txt to use for tree rooting')
     sys.exit()
+if include_dereplicated and not os.path.exists(workdir+'/'+'derep_genomes_summary.tsv'):
+    print('Could not locate information about dereplicated genomes from file "derep_genomes_summary.tsv"')
+    sys.exit()
 #/
 ###/
 
 ### Parse selected accessions metadata
 try:
     print('Parsing metadata...')
-    with open(workdir+'/'+'metadata_selected.dict','r') as f:
+    with open(workdir+'/'+'metadata_selected.tsv','r') as f:
         line = f.readline()
         accessions = ast.literal_eval(line)
 except:
@@ -103,6 +109,8 @@ for file_ in os.listdir(workdir+'/'+'outgroup'):
 #/
 # Print info
 print('Using '+outgroup_file+' as outgroup')
+if remove_outgroup:
+    print('Outgroup will not be output')
 #/
 ###/
 
@@ -156,6 +164,39 @@ if remove_outgroup:
     #/
 ###/
 
+### Check if user wants to output dereplicated genomes
+representant_dereplicated_genomes = {} # representative_genome -> dereplicated_genomes
+if include_dereplicated:
+    print('Importing information for redundant (dereplicated) genomes')
+    with open(workdir+'/'+'derep_genomes_summary.tsv','r') as f:
+        for enum,line in enumerate(f):
+            # parse line
+            line = line.strip('\n')
+            line = line.split('\t')
+            #/
+            # skip if header
+            if enum == 0 and line[0] == 'representant':
+                continue
+            #/
+            # parse data
+            representant = line[0].replace('.fasta','') # first column
+            redundants = []
+            for redundant in line[2:]: # remaining columns after 2
+                if redundant != '':
+                    redundants.append(redundant.replace('.fasta',''))
+            #/
+            # skip if no redundant genomes existed
+            if len(redundants) == 0: continue
+            #/
+            # save
+            if representant in representant_dereplicated_genomes:
+                print(f'WARNING: A representant was stated on multiple rows. This should not happen. Terminating now! {representant}')
+                sys.exit()
+            representant_dereplicated_genomes[representant] = redundants
+            #/
+    print(f'Done, imported redundant genomes for {len(representant_dereplicated_genomes)} represenants')
+###/
+
 ### Compile output parent-child table from leaves path-to-root and leaves to genome files
 ## Parent-child file
 with open(output_tree2tax_file,'w') as nf:
@@ -176,6 +217,13 @@ with open(output_tree2tax_file,'w') as nf:
             if writeArr in written_arrs: continue # skip if redundant row
             nf.write('\t'.join(writeArr)+'\n')
             
+            # check if this genome had redundant (dereplicated) genomes, if so then write all those redundant gneomes
+            if child in representant_dereplicated_genomes:
+                for redundant_genome in representant_dereplicated_genomes[child]:
+                    writeArr2 = [redundant_genome,parent] # use same parent as the representative genome
+                    nf.write('\t'.join(writeArr2)+'\n')
+            #/
+            
             written_arrs.append(writeArr) # keep track of redundant row
     #/
 ##/
@@ -186,5 +234,14 @@ with open(output_genomes_map_file,'w') as nf:
         accession = name_split[-2]+'_'+name_split[-1] # GCx_0000000
         writeArr = [accession,leaf]
         nf.write('\t'.join(writeArr)+'\n')
+        
+        # check if this genome had redundant (derpelicated) genomes, if so then write all those redundant genomes
+        if leaf in representant_dereplicated_genomes:
+            for redundant_genome in representant_dereplicated_genomes[leaf]:
+                name_split2 = redundant_genome.split('_')
+                accession2 = name_split2[-2]+'_'+name_split2[-1] # GCx_0000000
+                writeArr2 = [accession2,redundant_genome]
+                nf.write('\t'.join(writeArr2)+'\n')
+        #/
 ##/
 ###/
