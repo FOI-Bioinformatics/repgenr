@@ -19,7 +19,7 @@ Using the phylogenetic tree, generate files compatible with downstream applicati
 parser.add_argument('-wd','--workdir',required=True,help='Path to working directory, created by metadata-command')
 parser.add_argument('--node_basename',default=None,help='Input a basename of nodes in output relations. Each node will be enumerated using the basename as prefix.\nIf unset, will generate a node name hash based on leaf names (should ensure node unique naming in any modified database)')
 parser.add_argument('-r','--root_name',default=None,nargs='+',help='Specify the root name in output relations')
-parser.add_argument('--remove_outgroup',help='If specified, will remove the outgroup sample from output relations',action='store_true')
+parser.add_argument('--remove_outgroup',help='If specified, will remove the outgroup sample from output relations (tree not affected)',action='store_true')
 parser.add_argument('--all_genomes',action='store_true',help='If specified, will run on all genomes and not on de-replicated genomes')
 parser.add_argument('--include_dereplicated',action='store_true',help='If specified, will output relations for dereplicated genomes')
 #/
@@ -77,12 +77,14 @@ if not run_on_all_genomes:
     tree_input_file = workdir+'/'+'genomes_derep_representants.dnd'
     output_tree2tax_file = workdir+'/'+'derep_genomes_tree2tax.tsv'
     output_genomes_map_file = workdir+'/'+'derep_genomes_map.tsv'
+    tree_output_file = workdir+'/'+'genomes_derep_representants_with_branch_names.dnd'
 #/
 # Else, run on all genomes
 else:
     tree_input_file = workdir+'/'+'genomes.dnd'
     output_tree2tax_file = workdir+'/'+'genomes_tree2tax.tsv'
     output_genomes_map_file = workdir+'/'+'genomes_map.tsv'
+    tree_output_file = workdir+'/'+'genomes_with_branch_names.dnd'
 #/
 ###/
 
@@ -244,4 +246,8 @@ with open(output_genomes_map_file,'w') as nf:
                 nf.write('\t'.join(writeArr2)+'\n')
         #/
 ##/
+###/
+
+### Dump tree with same name-formatting as tsv files (for flexmetr node-renaming with metadata)
+tree.write(format=1, outfile=tree_output_file)
 ###/
