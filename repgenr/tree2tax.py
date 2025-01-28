@@ -112,7 +112,7 @@ for file_ in os.listdir(workdir+'/'+'outgroup'):
 # Print info
 print('Using '+outgroup_file+' as outgroup')
 if remove_outgroup:
-    print('Outgroup will not be output')
+    print('Outgroup will not be output to tsv files')
 #/
 ###/
 
@@ -219,11 +219,12 @@ with open(output_tree2tax_file,'w') as nf:
             if writeArr in written_arrs: continue # skip if redundant row
             nf.write('\t'.join(writeArr)+'\n')
             
-            # check if this genome had redundant (dereplicated) genomes, if so then write all those redundant gneomes
-            if child in representant_dereplicated_genomes:
-                for redundant_genome in representant_dereplicated_genomes[child]:
-                    writeArr2 = [redundant_genome,parent] # use same parent as the representative genome
-                    nf.write('\t'.join(writeArr2)+'\n')
+            # check if this genome had redundant (dereplicated) genomes, if so then write all those redundant genomes
+            if 0 and 'do not want redundant genomes as nodes, want them listed under the node for the representative genome':
+                if child in representant_dereplicated_genomes:
+                    for redundant_genome in representant_dereplicated_genomes[child]:
+                        writeArr2 = [redundant_genome,parent] # use same parent as the representative genome
+                        nf.write('\t'.join(writeArr2)+'\n')
             #/
             
             written_arrs.append(writeArr) # keep track of redundant row
@@ -237,12 +238,12 @@ with open(output_genomes_map_file,'w') as nf:
         writeArr = [accession,leaf]
         nf.write('\t'.join(writeArr)+'\n')
         
-        # check if this genome had redundant (derpelicated) genomes, if so then write all those redundant genomes
+        # check if this genome had redundant (derpelicated) genomes, if so then write all those redundant genomes under the representant
         if leaf in representant_dereplicated_genomes:
             for redundant_genome in representant_dereplicated_genomes[leaf]:
                 name_split2 = redundant_genome.split('_')
                 accession2 = name_split2[-2]+'_'+name_split2[-1] # GCx_0000000
-                writeArr2 = [accession2,redundant_genome]
+                writeArr2 = [accession2,leaf]
                 nf.write('\t'.join(writeArr2)+'\n')
         #/
 ##/
