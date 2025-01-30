@@ -248,7 +248,3 @@ with open(output_genomes_map_file,'w') as nf:
         #/
 ##/
 ###/
-
-### Dump tree with same name-formatting as tsv files (for flexmetr node-renaming with metadata)
-tree.write(format=1, outfile=tree_output_file)
-###/
